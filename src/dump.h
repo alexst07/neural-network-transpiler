@@ -17,6 +17,8 @@ class DumpGraph {
   std::string Dot();
 
  private:
+  std::string FormatTensorName(const std::string& name);
+
   Model& model_;
 };
 

@@ -50,6 +50,16 @@ void DumpGraph::Print() {
   }
 }
 
+std::string DumpGraph::FormatTensorName(const std::string& name) {
+  size_t pos = name.find_last_of('/');
+
+  if (pos != std::string::npos) {
+    return name.substr(pos);
+  }
+
+  return name;
+}
+
 std::string DumpGraph::Dot() {
   std::stringstream ss;
 
@@ -60,7 +70,8 @@ std::string DumpGraph::Dot() {
   int count = 0;
   for (const auto& tensor: graph.Tensors()) {
     ss << "  T" << count++ << " [";
-    ss << "label=\"" << tensor.name() << "\"]\n";
+    ss << "shape=box label=\"" << "..." << FormatTensorName(tensor.name())
+       << "\"]\n";
   }
 
   count = 0;
