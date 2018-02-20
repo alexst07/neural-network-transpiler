@@ -73,6 +73,24 @@ void Model::PopulateGraphTensors(const tflite::SubGraph* graph) {
   }
 }
 
+std::unique_ptr<BuiltinOptions> HandleBuiltinOptions(
+    const tflite::Operator* op) {
+  auto op_type = op->builtin_options_type();
+
+  switch (op_type) {
+    case tflite::BuiltinOptions::Conv2DOptions: {
+      auto p = reinterpret_cast<const tflite::Conv2DOptions*>(
+          op->builtin_options());
+
+      std::unique_ptr<Conv2DOptions> option = std::make_unique<Conv2DOptions>();
+      option->stride_w = p->stride_w();
+      option->stride_h = p->stride_h();
+
+    }
+
+  }
+}
+
 void Model::PopulateGraphOperators(const tflite::SubGraph* graph) {
   auto operators = graph->operators();
   std::vector<Operator> vec_operators;
