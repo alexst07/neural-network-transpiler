@@ -28,7 +28,8 @@ void DumpGraph::Print() {
     for (const auto&i : tensor.shape()) {
       std::cout << i << " ";
     }
-    std::cout << "]\n";
+    std::cout << "] ";
+    std::cout << "buffer: " << tensor.buffer_index() << "\n";
   }
 
   std::cout << "\nOperators:\n";

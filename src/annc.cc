@@ -9,5 +9,5 @@ int main(int argc, char **argv) {
   annc::Model model(fname);
 
   annc::DumpGraph dump(model);
-  std::cout << dump.Dot();
+  dump.Print();
 }

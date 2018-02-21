@@ -25,11 +25,11 @@ class Buffer {
  public:
   Buffer(std::vector<u_char>&& buf): buf_(std::move(buf)) {}
 
-  const std::vector<u_char>& Data() {
+  const std::vector<u_char>& Data() const {
     return buf_;
   }
 
-  const u_char* RawData() {
+  const u_char* RawData() const {
     return buf_.data();
   }
 
@@ -371,6 +371,10 @@ class Operator {
     return outputs_;
   }
 
+  const BuiltinOptions& builtin_op() const {
+    return *builtin_op_;
+  }
+
  private:
   int index_;
   std::string builtin_op_str_;
@@ -382,20 +386,23 @@ class Operator {
 class Tensor {
  public:
   Tensor(std::vector<int>&& shape, const std::string& name,
-      const Buffer& buffer)
+      const Buffer& buffer, uint buffer_index)
     : shape_(std::move(shape))
     , name_(name)
-    , buffer_(buffer) {}
+    , buffer_(buffer)
+    , buffer_index_(buffer_index) {}
 
   Tensor(const Tensor& tensor)
     : shape_(tensor.shape_)
     , name_(tensor.name_)
-    , buffer_(tensor.buffer_) {}
+    , buffer_(tensor.buffer_)
+    , buffer_index_(tensor.buffer_index_) {}
 
   Tensor(Tensor&& tensor)
     : shape_(std::move(tensor.shape_))
     , name_(std::move(tensor.name_))
-    , buffer_(tensor.buffer_) {}
+    , buffer_(tensor.buffer_)
+    , buffer_index_(tensor.buffer_index_) {}
 
   const std::string& name() const {
     return name_;
@@ -405,10 +412,19 @@ class Tensor {
     return shape_;
   }
 
+  const Buffer& buffer() const {
+    return buffer_;
+  }
+
+  uint buffer_index() const {
+    return buffer_index_;
+  }
+
  private:
   std::vector<int> shape_;
   std::string name_;
   const Buffer& buffer_;
+  uint buffer_index_;
 };
 
 class Graph {
@@ -462,6 +478,10 @@ class Model {
 
   Graph& graph() {
     return graph_;
+  }
+
+  const std::vector<Buffer>& Buffers() const {
+    return buffers_;
   }
 
  private:

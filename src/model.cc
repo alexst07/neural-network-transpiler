@@ -69,7 +69,8 @@ void Model::PopulateGraphTensors(const tflite::SubGraph* graph) {
     std::string name = it->name()->c_str();
     uint buf_index = it->buffer();
     const Buffer& buffer = buffers_[buf_index];
-    graph_.AddTensor(std::move(Tensor(std::move(vec_shape), name, buffer)));
+    graph_.AddTensor(std::move(Tensor(std::move(vec_shape), name, buffer,
+        buf_index)));
   }
 }
 
