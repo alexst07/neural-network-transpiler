@@ -49,6 +49,7 @@ enum class ActivationFunctionType: int8_t {
 enum class Padding: int8_t { SAME, VALID };
 
 enum class BuiltinOptionsType {
+  None,
   Conv2DOptions,
   DepthwiseConv2DOptions,
   ConcatEmbeddingsOptions,
@@ -86,6 +87,10 @@ struct BuiltinOptions {
   BuiltinOptions(BuiltinOptionsType type_op): type(type_op) {}
 
   BuiltinOptionsType type;
+};
+
+struct NoneOptions: public BuiltinOptions {
+  NoneOptions(): BuiltinOptions(BuiltinOptionsType::None) {}
 };
 
 struct Conv2DOptions: public BuiltinOptions {
@@ -332,12 +337,14 @@ struct SqueezeOptions: public BuiltinOptions {
 
 class Operator {
  public:
-  Operator(int index, const std::string& builtin_op_str,
-      std::vector<int>&& inputs, std::vector<int>&& outputs)
+  Operator(int index, std::unique_ptr<BuiltinOptions> builtin_op,
+      const std::string& builtin_op_str, std::vector<int>&& inputs,
+      std::vector<int>&& outputs)
     : index_(index)
     , builtin_op_str_(builtin_op_str)
     , inputs_(std::move(inputs))
-    , outputs_(std::move(outputs)) {}
+    , outputs_(std::move(outputs))
+    , builtin_op_(std::move(builtin_op)) {}
 
   Operator(Operator&& op)
     : index_(op.index_)
@@ -470,8 +477,95 @@ class Model {
 
   void PopulateBuffers();
 
+  std::unique_ptr<NoneOptions> MakeNoneOptions(const tflite::Operator* op);
+
+  std::unique_ptr<Conv2DOptions> MakeConv2DOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<Pool2DOptions> MakePool2DOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<DepthwiseConv2DOptions> MakeDepthwiseConv2DOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<ConcatEmbeddingsOptions> MakeConcatEmbeddingsOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<LSHProjectionOptions> MakeLSHProjectionOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<SVDFOptions> MakeSVDFOptions(const tflite::Operator* op);
+
+  std::unique_ptr<RNNOptions> MakeRNNOptions(const tflite::Operator* op);
+
+  std::unique_ptr<SequenceRNNOptions> MakeSequenceRNNOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<FullyConnectedOptions> MakeFullyConnectedOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<SoftmaxOptions> MakeSoftmaxOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<ConcatenationOptions> MakeConcatenationOptions(
+      const tflite::Operator* op);
+
   std::unique_ptr<BuiltinOptions> HandleBuiltinOptions(
       const tflite::Operator* op);
+
+  std::unique_ptr<AddOptions> MakeAddOptions(const tflite::Operator* op);
+
+  std::unique_ptr<MulOptions> MakeMulOptions(const tflite::Operator* op);
+
+  std::unique_ptr<L2NormOptions> MakeL2NormOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<LocalResponseNormalizationOptions>
+  MakeLocalResponseNormalizationOptions(const tflite::Operator* op);
+
+  std::unique_ptr<LSTMOptions> MakeLSTMOptions(const tflite::Operator* op);
+
+  std::unique_ptr<ResizeBilinearOptions> MakeResizeBilinearOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<CallOptions> MakeCallOptions(const tflite::Operator* op);
+
+  std::unique_ptr<PadOptions> MakePadOptions(const tflite::Operator* op);
+
+  std::unique_ptr<ReshapeOptions> MakeReshapeOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<SpaceToBatchNDOptions> MakeSpaceToBatchNDOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<SkipGramOptions> MakeSkipGramOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<SpaceToDepthOptions> MakeSpaceToDepthOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<BatchToSpaceNDOptions> MakeBatchToSpaceNDOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<SubOptions> MakeSubOptions(const tflite::Operator* op);
+
+  std::unique_ptr<DivOptions> MakeDivOptions(const tflite::Operator* op);
+
+  std::unique_ptr<EmbeddingLookupSparseOptions>
+  MakeEmbeddingLookupSparseOptions(const tflite::Operator* op);
+
+  std::unique_ptr<GatherOptions> MakeGatherOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<TransposeOptions> MakeTransposeOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<MeanOptions> MakeMeanOptions(const tflite::Operator* op);
+
+  std::unique_ptr<SqueezeOptions> MakeSqueezeOptions(
+      const tflite::Operator* op);
+
+  Padding ConvertPadding(tflite::Padding padding);
 
   ActivationFunctionType ConvertActivationFunction(
       tflite::ActivationFunctionType fn_activation_type);
