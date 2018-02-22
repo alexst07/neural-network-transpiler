@@ -1,13 +1,15 @@
 #include <iostream>
 
 #include "model.h"
-#include "dump.h"
+#include "cpp-gen.h"
 
 int main(int argc, char **argv) {
   std::string fname = argv[1];
 
   annc::Model model(fname);
 
-  annc::DumpGraph dump(model);
-  dump.Print();
+  annc::CppGen cpp(model);
+  std::vector<std::string> namespace_vec = {"test"};
+  boost::filesystem::path path(".");
+  cpp.GenFiles(namespace_vec, path);
 }

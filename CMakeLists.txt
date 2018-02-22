@@ -26,6 +26,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 # find packages
 #
 find_package(Threads)
+find_package(Boost COMPONENTS system filesystem REQUIRED)
 
 #
 # include directories
@@ -43,4 +44,7 @@ file(GLOB SRCS "${CMAKE_SOURCE_DIR}/src/*.cc")
 #
 add_executable(droidnet ${SRCS})
 
-target_link_libraries(droidnet /usr/local/lib/libflatbuffers.a)
+target_link_libraries(droidnet
+  ${Boost_FILESYSTEM_LIBRARY}
+  ${Boost_SYSTEM_LIBRARY}
+  /usr/local/lib/libflatbuffers.a)
