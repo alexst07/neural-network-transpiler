@@ -57,7 +57,7 @@ std::string TensorsHeader::Assembler(
 }
 
 std::string ModelGen::Generate() {
-  std::string str_init = "Init"
+  std::string str_init = "Init";
 }
 
 void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,

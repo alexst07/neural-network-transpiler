@@ -383,26 +383,32 @@ class Operator {
   std::unique_ptr<BuiltinOptions> builtin_op_;
 };
 
+struct QuantizationParameters {
+  std::vector<float> min;
+  std::vector<float> max;
+  std::vector<float> scale;
+  std::vector<long> zero_point;
+};
+
 class Tensor {
  public:
   Tensor(std::vector<int>&& shape, const std::string& name,
-      const Buffer& buffer, uint buffer_index)
+      const Buffer& buffer, uint buffer_index,
+      std::unique_ptr<QuantizationParameters> quantization)
     : shape_(std::move(shape))
     , name_(name)
     , buffer_(buffer)
-    , buffer_index_(buffer_index) {}
+    , buffer_index_(buffer_index)
+    , quantization_(std::move(quantization)) {}
 
-  Tensor(const Tensor& tensor)
-    : shape_(tensor.shape_)
-    , name_(tensor.name_)
-    , buffer_(tensor.buffer_)
-    , buffer_index_(tensor.buffer_index_) {}
+  Tensor(const Tensor& tensor) = delete;
 
   Tensor(Tensor&& tensor)
     : shape_(std::move(tensor.shape_))
     , name_(std::move(tensor.name_))
     , buffer_(tensor.buffer_)
-    , buffer_index_(tensor.buffer_index_) {}
+    , buffer_index_(tensor.buffer_index_)
+    , quantization_(std::move(tensor.quantization_)) {}
 
   const std::string& name() const {
     return name_;
@@ -420,11 +426,20 @@ class Tensor {
     return buffer_index_;
   }
 
+  bool HasQuantization() const {
+    return bool(quantization_);
+  }
+
+  const QuantizationParameters& quantization() const {
+    return *quantization_;
+  }
+
  private:
   std::vector<int> shape_;
   std::string name_;
   const Buffer& buffer_;
   uint buffer_index_;
+  std::unique_ptr<QuantizationParameters> quantization_;
 };
 
 class Graph {
@@ -595,6 +610,21 @@ class Model {
   std::vector<Buffer> buffers_;
   Graph graph_;
 };
+
+template<class T, class Ptr>
+std::vector<T> AssignVector(Ptr ptr) {
+  std::vector<T> vec;
+
+  if (!ptr) {
+    return vec;
+  }
+
+  for (auto it = ptr->begin(); it != ptr->end(); ++it) {
+    vec.push_back(*it);
+  }
+
+  return vec;
+}
 
 }
 

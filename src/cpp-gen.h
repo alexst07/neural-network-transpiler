@@ -29,7 +29,7 @@ class ModelGen {
   std::string Generate();
 
   Model& model_;
-}
+};
 
 class CppGen {
  public:

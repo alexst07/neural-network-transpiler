@@ -31,26 +31,12 @@ Model::Model(const std::string& fname)
 }
 
 void Model::PopulateGraphInputs(const tflite::SubGraph* graph) {
-  auto graph_inputs = graph->inputs();
-
-  // get inputs
-  std::vector<int> inputs;
-  for (auto it = graph_inputs->begin(); it != graph_inputs->end(); ++it) {
-    inputs.push_back(*it);
-  }
-
+  std::vector<int> inputs = AssignVector<int>(graph->inputs());
   graph_.SetInputs(std::move(inputs));
 }
 
 void Model::PopulateGraphOutputs(const tflite::SubGraph* graph) {
-  auto graph_outputs = graph->outputs();
-
-  // get outputs
-  std::vector<int> outputs;
-  for (auto it = graph_outputs->begin(); it != graph_outputs->end(); ++it) {
-    outputs.push_back(*it);
-  }
-
+  std::vector<int> outputs = AssignVector<int>(graph->outputs());
   graph_.SetOutputs(std::move(outputs));
 }
 
@@ -69,8 +55,22 @@ void Model::PopulateGraphTensors(const tflite::SubGraph* graph) {
     std::string name = it->name()->c_str();
     uint buf_index = it->buffer();
     const Buffer& buffer = buffers_[buf_index];
+
+    // get quantization
+    auto quantization = it->quantization();
+    std::unique_ptr<QuantizationParameters> quantization_ptr(
+        new QuantizationParameters);
+
+    if (quantization) {
+      quantization_ptr->min = AssignVector<float>(quantization->min());
+      quantization_ptr->max = AssignVector<float>(quantization->max());
+      quantization_ptr->scale = AssignVector<float>(quantization->scale());
+      quantization_ptr->zero_point =
+          AssignVector<long>(quantization->zero_point());
+    }
+
     graph_.AddTensor(std::move(Tensor(std::move(vec_shape), name, buffer,
-        buf_index)));
+        buf_index, std::move(quantization_ptr))));
   }
 }
 
@@ -183,18 +183,10 @@ std::unique_ptr<ConcatEmbeddingsOptions> Model::MakeConcatEmbeddingsOptions(
   option->num_channels = p->num_channels();
 
   auto num_columns = p->num_columns_per_channel();
-  std::vector<int> num_columns_per_channel_vec;
-  for (auto it = num_columns->begin(); it != num_columns->end(); ++it) {
-    num_columns_per_channel_vec.push_back(*it);
-  }
-  option->num_columns_per_channel = std::move(num_columns_per_channel_vec);
+  option->num_columns_per_channel = AssignVector<int>(num_columns);
 
   auto embedding_dim = p->embedding_dim_per_channel();
-  std::vector<int> embedding_dim_per_channel_vec;
-  for (auto it = embedding_dim->begin(); it != embedding_dim->end(); ++it) {
-    embedding_dim_per_channel_vec.push_back(*it);
-  }
-  option->embedding_dim_per_channel = std::move(embedding_dim_per_channel_vec);
+  option->embedding_dim_per_channel = AssignVector<int>(embedding_dim);
 
   return option;
 }
@@ -398,20 +390,8 @@ std::unique_ptr<PadOptions> Model::MakePadOptions(const tflite::Operator* op) {
   auto p = reinterpret_cast<const tflite::PadOptions*>(op->builtin_options());
 
   std::unique_ptr<PadOptions> option = std::make_unique<PadOptions>();
-
-  auto before_padding = p->before_padding();
-  std::vector<int> before_padding_vec;
-  for (auto it = before_padding->begin(); it != before_padding->end(); ++it) {
-    before_padding_vec.push_back(*it);
-  }
-  option->before_padding = std::move(before_padding_vec);
-
-  auto after_padding = p->after_padding();
-  std::vector<int> after_padding_vec;
-  for (auto it = after_padding->begin(); it != after_padding->end(); ++it) {
-    after_padding_vec.push_back(*it);
-  }
-  option->after_padding = std::move(after_padding_vec);
+  option->before_padding = AssignVector<int>(p->before_padding());
+  option->after_padding = AssignVector<int>(p->after_padding());
 
   return option;
 }
@@ -423,12 +403,7 @@ std::unique_ptr<ReshapeOptions> Model::MakeReshapeOptions(
 
   std::unique_ptr<ReshapeOptions> option = std::make_unique<ReshapeOptions>();
 
-  auto new_shape = p->new_shape();
-  std::vector<int> new_shape_vec;
-  for (auto it = new_shape->begin(); it != new_shape->end(); ++it) {
-    new_shape_vec.push_back(*it);
-  }
-  option->new_shape = std::move(new_shape_vec);
+  option->new_shape = AssignVector<int>(p->new_shape());
 
   return option;
 }
@@ -441,26 +416,9 @@ std::unique_ptr<SpaceToBatchNDOptions> Model::MakeSpaceToBatchNDOptions(
   std::unique_ptr<SpaceToBatchNDOptions> option =
       std::make_unique<SpaceToBatchNDOptions>();
 
-  auto block_shape = p->block_shape();
-  std::vector<int> block_shape_vec;
-  for (auto it = block_shape->begin(); it != block_shape->end(); ++it) {
-    block_shape_vec.push_back(*it);
-  }
-  option->block_shape = std::move(block_shape_vec);
-
-  auto before_paddings = p->before_paddings();
-  std::vector<int> before_paddings_vec;
-  for (auto it = before_paddings->begin(); it != before_paddings->end(); ++it) {
-    before_paddings_vec.push_back(*it);
-  }
-  option->before_paddings = std::move(before_paddings_vec);
-
-  auto after_paddings = p->after_paddings();
-  std::vector<int> after_paddings_vec;
-  for (auto it = after_paddings->begin(); it != after_paddings->end(); ++it) {
-    after_paddings_vec.push_back(*it);
-  }
-  option->after_paddings = std::move(after_paddings_vec);
+  option->block_shape = AssignVector<int>(p->block_shape());
+  option->before_paddings = AssignVector<int>(p->before_paddings());
+  option->after_paddings = AssignVector<int>(p->after_paddings());
 
   return option;
 }
@@ -473,26 +431,9 @@ std::unique_ptr<BatchToSpaceNDOptions> Model::MakeBatchToSpaceNDOptions(
   std::unique_ptr<BatchToSpaceNDOptions> option =
       std::make_unique<BatchToSpaceNDOptions>();
 
-  auto block_shape = p->block_shape();
-  std::vector<int> block_shape_vec;
-  for (auto it = block_shape->begin(); it != block_shape->end(); ++it) {
-    block_shape_vec.push_back(*it);
-  }
-  option->block_shape = std::move(block_shape_vec);
-
-  auto before_crops = p->before_crops();
-  std::vector<int> before_crops_vec;
-  for (auto it = before_crops->begin(); it != before_crops->end(); ++it) {
-    before_crops_vec.push_back(*it);
-  }
-  option->before_crops = std::move(before_crops_vec);
-
-  auto after_crops = p->after_crops();
-  std::vector<int> after_crops_vec;
-  for (auto it = after_crops->begin(); it != after_crops->end(); ++it) {
-    after_crops_vec.push_back(*it);
-  }
-  option->after_crops = std::move(after_crops_vec);
+  option->block_shape = AssignVector<int>(p->block_shape());
+  option->before_crops = AssignVector<int>(p->before_crops());
+  option->after_crops = AssignVector<int>(p->after_crops());
 
   return option;
 }
@@ -591,12 +532,7 @@ std::unique_ptr<TransposeOptions> Model::MakeTransposeOptions(
   std::unique_ptr<TransposeOptions> option =
       std::make_unique<TransposeOptions>();
 
-  auto perm = p->perm();
-  std::vector<int> perm_vec;
-  for (auto it = perm->begin(); it != perm->end(); ++it) {
-    perm_vec.push_back(*it);
-  }
-  option->perm = std::move(perm_vec);
+  option->perm = AssignVector<int>(p->perm());
 
   return option;
 }
@@ -609,13 +545,7 @@ std::unique_ptr<MeanOptions> Model::MakeMeanOptions(
   std::unique_ptr<MeanOptions> option = std::make_unique<MeanOptions>();
 
   option->keep_dims = p->keep_dims();
-
-  auto axis = p->axis();
-  std::vector<int> axis_vec;
-  for (auto it = axis->begin(); it != axis->end(); ++it) {
-    axis_vec.push_back(*it);
-  }
-  option->axis = std::move(axis_vec);
+  option->axis = AssignVector<int>(p->axis());
 
   return option;
 }
@@ -627,12 +557,7 @@ std::unique_ptr<SqueezeOptions> Model::MakeSqueezeOptions(
 
   std::unique_ptr<SqueezeOptions> option = std::make_unique<SqueezeOptions>();
 
-  auto squeeze_dims = p->squeeze_dims();
-  std::vector<int> squeeze_dims_vec;
-  for (auto it = squeeze_dims->begin(); it != squeeze_dims->end(); ++it) {
-    squeeze_dims_vec.push_back(*it);
-  }
-  option->squeeze_dims = std::move(squeeze_dims_vec);
+  option->squeeze_dims = AssignVector<int>(p->squeeze_dims());
 
   return option;
 }
@@ -777,17 +702,8 @@ void Model::PopulateGraphOperators(const tflite::SubGraph* graph) {
 
   // get operators
   for (auto it = operators->begin(); it != operators->end(); ++it) {
-    auto ins = it->inputs();
-    std::vector<int> vec_ins;
-    for (auto it_ins = ins->begin(); it_ins != ins->end(); ++it_ins) {
-      vec_ins.push_back(*it_ins);
-    }
-
-    auto outs = it->outputs();
-    std::vector<int> vec_outs;
-    for (auto it_outs = outs->begin(); it_outs != outs->end(); ++it_outs) {
-      vec_outs.push_back(*it_outs);
-    }
+    std::vector<int> vec_ins = AssignVector<int>(it->inputs());
+    std::vector<int> vec_outs = AssignVector<int>(it->outputs());
 
     std::string opt_str = tflite::EnumNamesBuiltinOptions()[static_cast<int>(
         it->builtin_options_type())];
@@ -813,22 +729,7 @@ void Model::PopulateBuffers() {
   auto buffer_vec = fb_model_->buffers();
 
   for (auto it = buffer_vec->begin(); it != buffer_vec->end(); ++it) {
-    auto buffer = it->data();
-
-    // if buffer is empty, push back an empty vector to buffers_
-    // TODO: Verify if empyt vector must be added
-    if (buffer == nullptr) {
-      std::vector<u_char> buf;
-      buffers_.push_back(std::move(buf));
-      continue;
-    }
-
-    std::vector<u_char> buf;
-
-    for (auto it_data = buffer->begin(); it_data != buffer->end(); ++it_data) {
-      buf.push_back(*it_data);
-    }
-
+    std::vector<u_char> buf = AssignVector<u_char>(it->data());
     buffers_.push_back(std::move(buf));
   }
 }
