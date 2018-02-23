@@ -28,6 +28,9 @@ class ModelGen {
  private:
   std::string Generate();
 
+  std::string GenerateTensorsCode();
+  std::string TensorTypeStr(TensorType type);
+
   Model& model_;
 };
 

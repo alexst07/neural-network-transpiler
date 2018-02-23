@@ -60,6 +60,47 @@ std::string ModelGen::Generate() {
   std::string str_init = "Init";
 }
 
+std::string ModelGen::TensorTypeStr(TensorType type) {
+  switch (type) {
+    case TensorType::FLOAT32:
+      return "ANEURALNETWORKS_TENSOR_FLOAT32";
+      break;
+
+    case TensorType::INT32:
+      return "ANEURALNETWORKS_TENSOR_INT32";
+      break;
+
+    case TensorType::UINT8:
+      return "ANEURALNETWORKS_TENSOR_QUANT8_ASYMM";
+      break;
+  }
+}
+
+std::string ModelGen::GenerateTensorsCode() {
+  Graph& graph = model_.graph();
+  std::stringstream ss;
+
+  int count = 0;
+  for (const auto& tensor: graph.Tensors()) {
+    ss << "ANeuralNetworksOperandType operand_type{\n";
+
+    std::string str_tensor_type;
+    switch (tensor.tensor_type()) {
+      case TensorType::FLOAT32:
+        str_tensor_type = "ANEURALNETWORKS_TENSOR_FLOAT32";
+        break;
+
+      case TensorType::INT32:
+        str_tensor_type = "ANEURALNETWORKS_TENSOR_INT32";
+        break;
+
+      case TensorType::UINT8:
+        str_tensor_type = "ANEURALNETWORKS_TENSOR_QUANT8_ASYMM";
+        break;
+    }
+  }
+}
+
 void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,
     const boost::filesystem::path& path) {
   std::ofstream tensors_file(path.string() + "/tensors_params.h");

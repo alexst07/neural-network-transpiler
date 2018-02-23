@@ -40,18 +40,42 @@ void Model::PopulateGraphOutputs(const tflite::SubGraph* graph) {
   graph_.SetOutputs(std::move(outputs));
 }
 
+TensorType Model::ConvertTensorType(tflite::TensorType type) {
+  switch (type) {
+    case tflite::TensorType::FLOAT32:
+      return TensorType::FLOAT32;
+      break;
+
+    case tflite::TensorType::FLOAT16:
+      return TensorType::FLOAT16;
+      break;
+
+    case tflite::TensorType::INT32:
+      return TensorType::INT32;
+      break;
+
+    case tflite::TensorType::UINT8:
+      return TensorType::UINT8;
+      break;
+
+    case tflite::TensorType::INT64:
+      return TensorType::INT64;
+      break;
+
+    case tflite::TensorType::STRING:
+      return TensorType::STRING;
+      break;
+
+    // TODO: Throw fatal error on default
+  }
+}
+
 void Model::PopulateGraphTensors(const tflite::SubGraph* graph) {
   auto tensors = graph->tensors();
 
   // get tensors
   for (auto it = tensors->begin(); it != tensors->end(); ++it) {
-    auto shape = it->shape();
-    std::vector<int> vec_shape;
-
-    for (auto it_shape = shape->begin(); it_shape != shape->end(); ++it_shape) {
-      vec_shape.push_back(*it_shape);
-    }
-
+    std::vector<int> vec_shape = AssignVector<int>(it->shape());
     std::string name = it->name()->c_str();
     uint buf_index = it->buffer();
     const Buffer& buffer = buffers_[buf_index];
@@ -69,7 +93,8 @@ void Model::PopulateGraphTensors(const tflite::SubGraph* graph) {
           AssignVector<long>(quantization->zero_point());
     }
 
-    graph_.AddTensor(std::move(Tensor(std::move(vec_shape), name, buffer,
+    TensorType type = ConvertTensorType(it->type());
+    graph_.AddTensor(std::move(Tensor(std::move(vec_shape), type, name, buffer,
         buf_index, std::move(quantization_ptr))));
   }
 }

@@ -390,12 +390,22 @@ struct QuantizationParameters {
   std::vector<long> zero_point;
 };
 
+enum class TensorType: int8_t {
+  FLOAT32,
+  FLOAT16,
+  INT32,
+  UINT8,
+  INT64,
+  STRING
+};
+
 class Tensor {
  public:
-  Tensor(std::vector<int>&& shape, const std::string& name,
-      const Buffer& buffer, uint buffer_index,
+  Tensor(std::vector<int>&& shape, TensorType tensor_type,
+      const std::string& name, const Buffer& buffer, uint buffer_index,
       std::unique_ptr<QuantizationParameters> quantization)
     : shape_(std::move(shape))
+    , tensor_type_(tensor_type)
     , name_(name)
     , buffer_(buffer)
     , buffer_index_(buffer_index)
@@ -405,6 +415,7 @@ class Tensor {
 
   Tensor(Tensor&& tensor)
     : shape_(std::move(tensor.shape_))
+    , tensor_type_(tensor.tensor_type_)
     , name_(std::move(tensor.name_))
     , buffer_(tensor.buffer_)
     , buffer_index_(tensor.buffer_index_)
@@ -416,6 +427,10 @@ class Tensor {
 
   const std::vector<int>& shape() const {
     return shape_;
+  }
+
+  TensorType tensor_type() const {
+    return tensor_type_;
   }
 
   const Buffer& buffer() const {
@@ -436,6 +451,7 @@ class Tensor {
 
  private:
   std::vector<int> shape_;
+  TensorType tensor_type_;
   std::string name_;
   const Buffer& buffer_;
   uint buffer_index_;
@@ -505,6 +521,8 @@ class Model {
   void PopulateGraphInputs(const tflite::SubGraph* graph);
 
   void PopulateGraphOutputs(const tflite::SubGraph* graph);
+
+  TensorType ConvertTensorType(tflite::TensorType type);
 
   void PopulateGraphTensors(const tflite::SubGraph* graph);
 
