@@ -13,7 +13,7 @@ class TensorsHeader {
  public:
   TensorsHeader(Model& model): model_(model) {}
 
-  std::string Assembler(const std::vector<std::string>& namespace_vec);
+  std::string Assembler();
 
  private:
   std::string Generate();
@@ -27,9 +27,13 @@ class ModelGen {
 
  private:
   std::string Generate();
-
+  std::string GenerateTensorType(const Tensor& tensor, int count);
   std::string GenerateTensorsCode();
   std::string TensorTypeStr(TensorType type);
+  std::string TensorDim(const std::vector<int>& dim);
+  float TensorQuantizationScale(const QuantizationParameters& q);
+  int TensorQuantizationZeroPoint(const QuantizationParameters& q);
+  std::string CheckStatus(const boost::format& msg);
 
   Model& model_;
 };

@@ -1,7 +1,9 @@
+#include "model.h"
+
 #include <cstdio>
 #include <iostream>
 
-#include "model.h"
+#include "exception.h"
 
 namespace annc {
 
@@ -66,7 +68,8 @@ TensorType Model::ConvertTensorType(tflite::TensorType type) {
       return TensorType::STRING;
       break;
 
-    // TODO: Throw fatal error on default
+    default:
+      FATAL("Tensor type not valid")
   }
 }
 
