@@ -161,6 +161,126 @@ std::string ModelGen::GenerateTensorsCode() {
   return ss.str();
 }
 
+std::string ModelGen::GenerateOpInputs(const std::vector<int>& inputs) {
+  // inputs loop
+  std::string str_in = "";
+
+  for (const auto& in_value : inputs) {
+    str_in += " " + std::to_string(in_value) + ",";
+  }
+
+  str_in = str_in.substr(0. str_in.length() - 1);
+  return str_in;
+}
+
+std::string ModelGen::GenerateOpOutputs(const std::vector<int>& outputs) {
+  // outputs loop
+  std::string str_out = "";
+
+  for (const auto& out_value : outputs) {
+    str_out += " " + std::to_string(out_value) + ",";
+  }
+
+  str_out = str_out.substr(0. str_out.length() - 1);
+  return str_out;
+}
+
+std::string ModelGen::OpTypeStr(BuiltinOptionsType type) {
+  switch (builtin) {
+    case BuiltinOptionsType::BuiltinOperator_ADD:
+      return "ANEURALNETWORKS_ADD";
+      break;
+
+    case BuiltinOptionsType::AVERAGE_POOL_2D:
+      return "ANEURALNETWORKS_AVERAGE_POOL_2D";
+      break;
+
+    case BuiltinOptionsType::Pool2DOptions:
+      return "ANEURALNETWORKS_MAX_POOL_2D";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_L2_POOL_2D:
+      return "ANEURALNETWORKS_L2_POOL_2D";
+      break;
+
+    case BuiltinOptionsType::Conv2DOptions:
+      return "ANEURALNETWORKS_CONV_2D";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_RELU:
+      return "ANEURALNETWORKS_RELU";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_RELU6:
+      return "ANEURALNETWORKS_RELU6";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_TANH:
+      return "ANEURALNETWORKS_TANH";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_LOGISTIC:
+      return "ANEURALNETWORKS_LOGISTIC";
+      break;
+
+    case BuiltinOptionsType::DepthwiseConv2DOptions:
+      return "ANEURALNETWORKS_DEPTHWISE_CONV_2D";
+      break;
+
+    case BuiltinOptionsType::ConcatEmbeddingsOptions:
+      return "ANEURALNETWORKS_CONCATENATION";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_SOFTMAX:
+      return "ANEURALNETWORKS_SOFTMAX";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_FULLY_CONNECTED:
+      return "ANEURALNETWORKS_FULLY_CONNECTED";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_RESHAPE:
+      return "ANEURALNETWORKS_RESHAPE";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_SPACE_TO_DEPTH:
+      return "ANEURALNETWORKS_SPACE_TO_DEPTH";
+      break;
+
+    case BuiltinOptionsType::BuiltinOperator_LSTM:
+      return "ANEURALNETWORKS_LSTM";
+      break;
+
+    default:
+      FATAL(boost::format("Not supported type on NNAPI"))
+  }
+}
+
+std::string ModelGen::GenerateOpCode() {
+  Graph& graph = model_.graph();
+  std::stringstream ss;
+
+  int count = 0;
+  for (const auto& op: graph.Operators()) {
+    ss << "uint32_t input_operands_" << count << "[";
+    ss << op.inputs().size() <<"] = {";
+    ss << GenerateOpInputs(op.inputs()) << "};\n";
+
+    ss << "uint32_t output_operands_" << count << "[";
+    ss << op.outputs().size() <<"] = {";
+    ss << GenerateOpOutputs(op.outputs()) << "};\n";
+
+    ss << "status = ANeuralNetworksModel_addOperation(model, ";
+    ss << OpTypeStr(op.builtin_op().type) << ", sizeof(input_operands_" ;
+    ss << count <<"), input_operands_" << count << ", ";
+    ss << ", sizeof(output_operands_" << count << "), ";
+    ss << "input_operands_" << count << ");\n";
+
+    ss << CheckStatus(boost::format(
+        "ANeuralNetworksModel_addOperation failed for operation %1%")%count);
+  }
+}
+
 void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,
     const boost::filesystem::path& path) {
   std::ofstream tensors_file(path.string() + "/weights_biases.bin",

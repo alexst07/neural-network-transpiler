@@ -48,6 +48,51 @@ enum class ActivationFunctionType: int8_t {
 
 enum class Padding: int8_t { SAME, VALID };
 
+enum class OperatorCode {
+  NONE,
+  ADD,
+  AVERAGE_POOL_2D,
+  CONCATENATION,
+  CONV_2D,
+  DEPTHWISE_CONV_2D,
+  EMBEDDING_LOOKUP,
+  FULLY_CONNECTED,
+  HASHTABLE_LOOKUP,
+  L2_NORMALIZATION,
+  L2_POOL_2D,
+  LOCAL_RESPONSE_NORMALIZATION,
+  LOGISTIC,
+  LSH_PROJECTION,
+  LSTM,
+  MAX_POOL_2D,
+  MUL,
+  RELU,
+  RELU1,
+  RELU6,
+  RESHAPE,
+  RESIZE_BILINEAR,
+  RNN,
+  SOFTMAX,
+  SPACE_TO_DEPTH,
+  SVDF,
+  TANH,
+  CONCAT_EMBEDDINGS,
+  SKIP_GRAM,
+  CALL,
+  CUSTOM,
+  EMBEDDING_LOOKUP_SPARSE,
+  PA,
+  UNIDIRECTIONAL_SEQUENCE_RNN,
+  GATHER,
+  BATCH_TO_SPACE_ND,
+  SPACE_TO_BATCH_ND,
+  TRANSPOSE,
+  MEAN,
+  SUB,
+  DIV,
+  SQUEEZE
+};
+
 enum class BuiltinOptionsType {
   None,
   Conv2DOptions,
@@ -81,6 +126,11 @@ enum class BuiltinOptionsType {
   DivOptions,
   SqueezeOptions,
   SequenceRNNOptions
+};
+
+struct OperatorCode {
+  OperatorCode builtin_code;
+  std::string custom_code;
 };
 
 struct BuiltinOptions {
@@ -530,6 +580,10 @@ class Model {
 
   void PopulateBuffers();
 
+  OperatorCode ConvertOperatorCode(tflite::BuiltinOperator type);
+
+  void PopulateOperatorsCode();
+
   std::unique_ptr<NoneOptions> MakeNoneOptions(const tflite::Operator* op);
 
   std::unique_ptr<Conv2DOptions> MakeConv2DOptions(
@@ -626,6 +680,7 @@ class Model {
   FlatBufferModel flat_buffers_;
   const tflite::Model *fb_model_;
   std::vector<Buffer> buffers_;
+  std::vector<OperatorCode> operators_code_;
   Graph graph_;
 };
 

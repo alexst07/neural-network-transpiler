@@ -766,6 +766,19 @@ void Model::PopulateBuffers() {
   }
 }
 
+void Model::PopulateOperatorsCode() {
+  auto op_codes_vec = fb_model_->operator_codes();
+
+  if (!op_codes_vec) {
+    return;
+  }
+
+  for (auto it = op_codes_vec->begin(); it != op_codes_vec->end(); ++it) {
+    std::vector<u_char> buf = AssignVector<u_char>(it->data());
+    buffers_.push_back(std::move(buf));
+  }
+}
+
 const char* Model::description() {
   return fb_model_->description()->c_str();
 }

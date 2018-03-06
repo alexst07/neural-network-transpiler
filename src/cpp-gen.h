@@ -36,6 +36,11 @@ class ModelGen {
   int TensorQuantizationZeroPoint(const QuantizationParameters& q);
   std::string CheckStatus(const boost::format& msg);
 
+  std::string GenerateOpCode();
+  std::string GenerateOpInputs(const std::vector<int>& inputs);
+  std::string GenerateOpOutputs(const std::vector<int>& outputs);
+  std::string OpTypeStr(BuiltinOptionsType type);
+
   Model& model_;
 };
 
