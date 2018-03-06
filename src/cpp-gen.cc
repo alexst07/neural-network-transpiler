@@ -85,7 +85,7 @@ std::string ModelGen::GenerateTensorType(const Tensor& tensor, int count) {
   std::stringstream ss;
   std::string dimensions = TensorDim(tensor.shape());
 
-  ss << "dimensions_" << count << "[] = " << dimensions << ";\n";
+  ss << "uint32_t dimensions_" << count << "[] = " << dimensions << ";\n";
   ss << "ANeuralNetworksOperandType operand_type_ " << count << "{\n";
 
   std::string str_tensor_type = TensorTypeStr(tensor.tensor_type());
@@ -117,10 +117,10 @@ std::string ModelGen::CheckStatus(const boost::format& msg) {
 
   // nnapi always check the result of operation
   ss << "if (status != ANEURALNETWORKS_NO_ERROR) {\n";
-  ss << "  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n"
+  ss << "  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n";
   ss << "      \"" << boost::str(msg) << "\");";
   ss << "  return false;";
-  ss << "}"
+  ss << "}";
 
   return ss.str();
 }
@@ -137,15 +137,28 @@ std::string ModelGen::GenerateTensorsCode() {
     // insert nnapi operand
     ss << "status = ANeuralNetworksModel_addOperand(model,";
     ss << "operand_type_" << count << ");\n";
-    ss << CheckStatus("ANeuralNetworksModel_addOperand failed for operand %1%"
-        %count);
+    ss << CheckStatus(boost::format("ANeuralNetworksModel_addOperand failed"
+        "for operand %1%")%count);
 
-    // insert operand value
-    ss << "status = ANeuralNetworksModel_setOperandValueFromMemory(model, ";
-    ss << count << ", memory_model, offset, tensor_size);"
-    ss << CheckStatus("ANeuralNetworksModel_setOperandValueFromMemory "
-        "failed for operand %1%"%count);
+    size_t buf_size = tensor.buffer().Data().size();
+
+    if (buf_size > 0) {
+      // get tensor size
+      ss << "tensor_size = " << buf_size << ";";
+
+      // insert operand value
+      ss << "status = ANeuralNetworksModel_setOperandValueFromMemory(model, ";
+      ss << count << ", memory_model, offset, tensor_size);";
+      ss << CheckStatus(boost::format(
+          "ANeuralNetworksModel_setOperandValueFromMemory "
+          "failed for operand %1%")%count);
+
+      // calculates the offset
+      ss << "offset += tensor_size";
+    }
   }
+
+  return ss.str();
 }
 
 void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,

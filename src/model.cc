@@ -756,6 +756,10 @@ void Model::PopulateGraph() {
 void Model::PopulateBuffers() {
   auto buffer_vec = fb_model_->buffers();
 
+  if (!buffer_vec) {
+    return;
+  }
+
   for (auto it = buffer_vec->begin(); it != buffer_vec->end(); ++it) {
     std::vector<u_char> buf = AssignVector<u_char>(it->data());
     buffers_.push_back(std::move(buf));
