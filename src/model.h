@@ -48,7 +48,7 @@ enum class ActivationFunctionType: int8_t {
 
 enum class Padding: int8_t { SAME, VALID };
 
-enum class OperatorCode {
+enum class BuiltinOperator {
   NONE,
   ADD,
   AVERAGE_POOL_2D,
@@ -81,7 +81,7 @@ enum class OperatorCode {
   CALL,
   CUSTOM,
   EMBEDDING_LOOKUP_SPARSE,
-  PA,
+  PAD,
   UNIDIRECTIONAL_SEQUENCE_RNN,
   GATHER,
   BATCH_TO_SPACE_ND,
@@ -129,7 +129,7 @@ enum class BuiltinOptionsType {
 };
 
 struct OperatorCode {
-  OperatorCode builtin_code;
+  BuiltinOperator builtin_code;
   std::string custom_code;
 };
 
@@ -387,10 +387,12 @@ struct SqueezeOptions: public BuiltinOptions {
 
 class Operator {
  public:
-  Operator(int index, std::unique_ptr<BuiltinOptions> builtin_op,
+  Operator(int index, const OperatorCode& op_code,
+      std::unique_ptr<BuiltinOptions> builtin_op,
       const std::string& builtin_op_str, std::vector<int>&& inputs,
       std::vector<int>&& outputs)
     : index_(index)
+    , op_code_(op_code)
     , builtin_op_str_(builtin_op_str)
     , inputs_(std::move(inputs))
     , outputs_(std::move(outputs))
@@ -398,6 +400,7 @@ class Operator {
 
   Operator(Operator&& op)
     : index_(op.index_)
+    , op_code_(op.op_code_)
     , builtin_op_str_(std::move(op.builtin_op_str_))
     , inputs_(std::move(op.inputs_))
     , outputs_(std::move(op.outputs_))
@@ -425,8 +428,13 @@ class Operator {
     return *builtin_op_;
   }
 
+  const OperatorCode& op_code() const {
+    return op_code_;
+  }
+
  private:
   int index_;
+  const OperatorCode& op_code_;
   std::string builtin_op_str_;
   std::vector<int> inputs_;
   std::vector<int> outputs_;
@@ -580,7 +588,7 @@ class Model {
 
   void PopulateBuffers();
 
-  OperatorCode ConvertOperatorCode(tflite::BuiltinOperator type);
+  BuiltinOperator ConvertOperatorCode(tflite::BuiltinOperator type);
 
   void PopulateOperatorsCode();
 

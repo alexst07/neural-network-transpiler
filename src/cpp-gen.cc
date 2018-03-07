@@ -51,6 +51,25 @@ std::string ModelGen::TensorTypeStr(TensorType type) {
   }
 }
 
+std::string ModelGen::TensorCppTypeStr(TensorType type) {
+  switch (type) {
+    case TensorType::FLOAT32:
+      return "FLOAT16";
+      break;
+
+    case TensorType::INT32:
+      return "int32_t";
+      break;
+
+    case TensorType::UINT8:
+      return "char";
+      break;
+
+    default:
+      FATAL("Tensor type not valid for Android NNAPI")
+  }
+}
+
 std::string ModelGen::TensorDim(const std::vector<int>& dim) {
   std::string str_out = "{";
 
@@ -86,7 +105,7 @@ std::string ModelGen::GenerateTensorType(const Tensor& tensor, int count) {
   std::string dimensions = TensorDim(tensor.shape());
 
   ss << "uint32_t dimensions_" << count << "[] = " << dimensions << ";\n";
-  ss << "ANeuralNetworksOperandType operand_type_ " << count << "{\n";
+  ss << "ANeuralNetworksOperandType operand_type_" << count << " {\n";
 
   std::string str_tensor_type = TensorTypeStr(tensor.tensor_type());
   int dimension_count = tensor.shape().size();
@@ -102,12 +121,12 @@ std::string ModelGen::GenerateTensorType(const Tensor& tensor, int count) {
     zero_point = 0;
   }
 
-  ss << ".type = " << str_tensor_type << ",\n";
-  ss << ".dimensionCount = " << dimension_count << ",\n";
-  ss << ".dimensions = " << "dimensions_" << count << ",\n";
-  ss << ".scale = " << scale << "f,\n";
-  ss << ".zeroPoint = " << zero_point << "\n";
-  ss << "}\n";
+  ss << "  .type = " << str_tensor_type << ",\n";
+  ss << "  .dimensionCount = " << dimension_count << ",\n";
+  ss << "  .dimensions = " << "dimensions_" << count << ",\n";
+  ss << "  .scale = " << scale << "f,\n";
+  ss << "  .zeroPoint = " << zero_point << "\n";
+  ss << "}\n\n";
 
   return ss.str();
 }
@@ -118,9 +137,9 @@ std::string ModelGen::CheckStatus(const boost::format& msg) {
   // nnapi always check the result of operation
   ss << "if (status != ANEURALNETWORKS_NO_ERROR) {\n";
   ss << "  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n";
-  ss << "      \"" << boost::str(msg) << "\");";
-  ss << "  return false;";
-  ss << "}";
+  ss << "      \"" << boost::str(msg) << "\");\n";
+  ss << "  return false;\n";
+  ss << "}\n\n";
 
   return ss.str();
 }
@@ -144,18 +163,20 @@ std::string ModelGen::GenerateTensorsCode() {
 
     if (buf_size > 0) {
       // get tensor size
-      ss << "tensor_size = " << buf_size << ";";
+      ss << "tensor_size = " << buf_size << ";\n";
 
       // insert operand value
       ss << "status = ANeuralNetworksModel_setOperandValueFromMemory(model, ";
-      ss << count << ", memory_model, offset, tensor_size);";
+      ss << count << ", memory_model, offset, tensor_size);\n\n";
       ss << CheckStatus(boost::format(
           "ANeuralNetworksModel_setOperandValueFromMemory "
           "failed for operand %1%")%count);
 
       // calculates the offset
-      ss << "offset += tensor_size";
+      ss << "offset += tensor_size;\n";
     }
+
+    ++count;
   }
 
   return ss.str();
@@ -169,7 +190,7 @@ std::string ModelGen::GenerateOpInputs(const std::vector<int>& inputs) {
     str_in += " " + std::to_string(in_value) + ",";
   }
 
-  str_in = str_in.substr(0. str_in.length() - 1);
+  str_in = str_in.substr(0, str_in.length() - 1);
   return str_in;
 }
 
@@ -181,73 +202,73 @@ std::string ModelGen::GenerateOpOutputs(const std::vector<int>& outputs) {
     str_out += " " + std::to_string(out_value) + ",";
   }
 
-  str_out = str_out.substr(0. str_out.length() - 1);
+  str_out = str_out.substr(0, str_out.length() - 1);
   return str_out;
 }
 
-std::string ModelGen::OpTypeStr(BuiltinOptionsType type) {
-  switch (builtin) {
-    case BuiltinOptionsType::BuiltinOperator_ADD:
+std::string ModelGen::OpTypeStr(BuiltinOperator op_type) {
+  switch (op_type) {
+    case BuiltinOperator::ADD:
       return "ANEURALNETWORKS_ADD";
       break;
 
-    case BuiltinOptionsType::AVERAGE_POOL_2D:
+    case BuiltinOperator::AVERAGE_POOL_2D:
       return "ANEURALNETWORKS_AVERAGE_POOL_2D";
       break;
 
-    case BuiltinOptionsType::Pool2DOptions:
+    case BuiltinOperator::MAX_POOL_2D:
       return "ANEURALNETWORKS_MAX_POOL_2D";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_L2_POOL_2D:
+    case BuiltinOperator::L2_POOL_2D:
       return "ANEURALNETWORKS_L2_POOL_2D";
       break;
 
-    case BuiltinOptionsType::Conv2DOptions:
+    case BuiltinOperator::CONV_2D:
       return "ANEURALNETWORKS_CONV_2D";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_RELU:
+    case BuiltinOperator::RELU:
       return "ANEURALNETWORKS_RELU";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_RELU6:
+    case BuiltinOperator::RELU6:
       return "ANEURALNETWORKS_RELU6";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_TANH:
+    case BuiltinOperator::TANH:
       return "ANEURALNETWORKS_TANH";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_LOGISTIC:
+    case BuiltinOperator::LOGISTIC:
       return "ANEURALNETWORKS_LOGISTIC";
       break;
 
-    case BuiltinOptionsType::DepthwiseConv2DOptions:
+    case BuiltinOperator::DEPTHWISE_CONV_2D:
       return "ANEURALNETWORKS_DEPTHWISE_CONV_2D";
       break;
 
-    case BuiltinOptionsType::ConcatEmbeddingsOptions:
+    case BuiltinOperator::CONCATENATION:
       return "ANEURALNETWORKS_CONCATENATION";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_SOFTMAX:
+    case BuiltinOperator::SOFTMAX:
       return "ANEURALNETWORKS_SOFTMAX";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_FULLY_CONNECTED:
+    case BuiltinOperator::FULLY_CONNECTED:
       return "ANEURALNETWORKS_FULLY_CONNECTED";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_RESHAPE:
+    case BuiltinOperator::RESHAPE:
       return "ANEURALNETWORKS_RESHAPE";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_SPACE_TO_DEPTH:
+    case BuiltinOperator::SPACE_TO_DEPTH:
       return "ANEURALNETWORKS_SPACE_TO_DEPTH";
       break;
 
-    case BuiltinOptionsType::BuiltinOperator_LSTM:
+    case BuiltinOperator::LSTM:
       return "ANEURALNETWORKS_LSTM";
       break;
 
@@ -264,25 +285,42 @@ std::string ModelGen::GenerateOpCode() {
   for (const auto& op: graph.Operators()) {
     ss << "uint32_t input_operands_" << count << "[";
     ss << op.inputs().size() <<"] = {";
-    ss << GenerateOpInputs(op.inputs()) << "};\n";
+    ss << GenerateOpInputs(op.inputs()) << " };\n";
 
     ss << "uint32_t output_operands_" << count << "[";
     ss << op.outputs().size() <<"] = {";
-    ss << GenerateOpOutputs(op.outputs()) << "};\n";
+    ss << GenerateOpOutputs(op.outputs()) << " };\n\n";
 
     ss << "status = ANeuralNetworksModel_addOperation(model, ";
-    ss << OpTypeStr(op.builtin_op().type) << ", sizeof(input_operands_" ;
+    ss << OpTypeStr(op.op_code().builtin_code) << ", sizeof(input_operands_" ;
     ss << count <<"), input_operands_" << count << ", ";
-    ss << ", sizeof(output_operands_" << count << "), ";
-    ss << "input_operands_" << count << ");\n";
+    ss << "sizeof(output_operands_" << count << "), ";
+    ss << "output_operands_" << count << ");\n";
 
     ss << CheckStatus(boost::format(
         "ANeuralNetworksModel_addOperation failed for operation %1%")%count);
+
+    ++count;
   }
+
+  return ss.str();
+}
+
+std::string ModelGen::Assembler() {
+  std::string code;
+  code = GenerateTensorsCode();
+  code += GenerateOpCode();
+
+  return code;
 }
 
 void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,
     const boost::filesystem::path& path) {
+  GenTensorsDataFile(path);
+  GenCppFile(path);
+}
+
+void CppGen::GenTensorsDataFile(const boost::filesystem::path& path) {
   std::ofstream tensors_file(path.string() + "/weights_biases.bin",
       std::ofstream::out | std::ofstream::binary);
 
@@ -294,6 +332,20 @@ void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,
   std::string buf = tensor_header.Assembler();
   tensors_file.write(buf.c_str(), buf.length());
   tensors_file.close();
+}
+
+void CppGen::GenCppFile(const boost::filesystem::path& path) {
+  std::ofstream cc_file(path.string() + "/nn.cc",
+      std::ofstream::out | std::ofstream::binary);
+
+  if (!cc_file.is_open()) {
+    FATAL("Fail on create nn.cc file")
+  }
+
+  ModelGen model(model_);
+  std::string code = model.Assembler();
+  cc_file.write(code.c_str(), code.length());
+  cc_file.close();
 }
 
 }

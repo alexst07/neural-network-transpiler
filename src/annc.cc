@@ -9,10 +9,10 @@ int main(int argc, char **argv) {
 
   annc::Model model(fname);
 
-  // annc::CppGen cpp(model);
-  // std::vector<std::string> namespace_vec = {"test"};
-  // boost::filesystem::path path(".");
-  // cpp.GenFiles(namespace_vec, path);
+  annc::CppGen cpp(model);
+  std::vector<std::string> namespace_vec = {"test"};
+  boost::filesystem::path path(".");
+  cpp.GenFiles(namespace_vec, path);
 
   annc::DumpGraph dump(model);
   std::cout << dump.Dot();

@@ -29,6 +29,7 @@ Model::Model(const std::string& fname)
   : flat_buffers_(fname)
   , fb_model_(tflite::GetModel(flat_buffers_.data())) {
   PopulateBuffers();
+  PopulateOperatorsCode();
   PopulateGraph();
 }
 
@@ -739,7 +740,11 @@ void Model::PopulateGraphOperators(const tflite::SubGraph* graph) {
     // get builtin options
     std::unique_ptr<BuiltinOptions> builtin_op(HandleBuiltinOptions(*it));
 
-    graph_.AddOperator(Operator(it->opcode_index(), std::move(builtin_op),
+    // get the operator code reference given the index o operator table
+    size_t opcode_index = static_cast<size_t>(it->opcode_index());
+    const OperatorCode& op_code = operators_code_[opcode_index];
+
+    graph_.AddOperator(Operator(opcode_index, op_code, std::move(builtin_op),
         opt_str, std::move(vec_ins), std::move(vec_outs)));
   }
 }
@@ -766,6 +771,177 @@ void Model::PopulateBuffers() {
   }
 }
 
+BuiltinOperator Model::ConvertOperatorCode(tflite::BuiltinOperator type) {
+  switch (type) {
+    case tflite::BuiltinOperator::ADD:
+      return BuiltinOperator::ADD;
+      break;
+
+    case tflite::BuiltinOperator::AVERAGE_POOL_2D:
+      return BuiltinOperator::AVERAGE_POOL_2D;
+      break;
+
+    case tflite::BuiltinOperator::CONCATENATION:
+      return BuiltinOperator::CONCATENATION;
+      break;
+
+    case tflite::BuiltinOperator::CONV_2D:
+      return BuiltinOperator::CONV_2D;
+      break;
+
+    case tflite::BuiltinOperator::DEPTHWISE_CONV_2D:
+      return BuiltinOperator::DEPTHWISE_CONV_2D;
+      break;
+
+    case tflite::BuiltinOperator::EMBEDDING_LOOKUP:
+      return BuiltinOperator::EMBEDDING_LOOKUP;
+      break;
+
+    case tflite::BuiltinOperator::FULLY_CONNECTED:
+      return BuiltinOperator::FULLY_CONNECTED;
+      break;
+
+    case tflite::BuiltinOperator::HASHTABLE_LOOKUP:
+      return BuiltinOperator::HASHTABLE_LOOKUP;
+      break;
+
+    case tflite::BuiltinOperator::L2_NORMALIZATION:
+      return BuiltinOperator::L2_NORMALIZATION;
+      break;
+
+    case tflite::BuiltinOperator::L2_POOL_2D:
+      return BuiltinOperator::L2_POOL_2D;
+      break;
+
+    case tflite::BuiltinOperator::LOCAL_RESPONSE_NORMALIZATION:
+      return BuiltinOperator::LOCAL_RESPONSE_NORMALIZATION;
+      break;
+
+    case tflite::BuiltinOperator::LOGISTIC:
+      return BuiltinOperator::LOGISTIC;
+      break;
+
+    case tflite::BuiltinOperator::LSH_PROJECTION:
+      return BuiltinOperator::LSH_PROJECTION;
+      break;
+
+    case tflite::BuiltinOperator::LSTM:
+      return BuiltinOperator::LSTM;
+      break;
+
+    case tflite::BuiltinOperator::MAX_POOL_2D:
+      return BuiltinOperator::MAX_POOL_2D;
+      break;
+
+    case tflite::BuiltinOperator::MUL:
+      return BuiltinOperator::MUL;
+      break;
+
+    case tflite::BuiltinOperator::RELU:
+      return BuiltinOperator::RELU;
+      break;
+
+    case tflite::BuiltinOperator::RELU_N1_TO_1:
+      return BuiltinOperator::RELU1;
+      break;
+
+    case tflite::BuiltinOperator::RELU6:
+      return BuiltinOperator::RELU6;
+      break;
+
+    case tflite::BuiltinOperator::RESHAPE:
+      return BuiltinOperator::RESHAPE;
+      break;
+
+    case tflite::BuiltinOperator::RESIZE_BILINEAR:
+      return BuiltinOperator::RESIZE_BILINEAR;
+      break;
+
+    case tflite::BuiltinOperator::RNN:
+      return BuiltinOperator::RNN;
+      break;
+
+    case tflite::BuiltinOperator::SOFTMAX:
+      return BuiltinOperator::SOFTMAX;
+      break;
+
+    case tflite::BuiltinOperator::SPACE_TO_DEPTH:
+      return BuiltinOperator::SPACE_TO_DEPTH;
+      break;
+
+    case tflite::BuiltinOperator::SVDF:
+      return BuiltinOperator::SVDF;
+      break;
+
+    case tflite::BuiltinOperator::TANH:
+      return BuiltinOperator::TANH;
+      break;
+
+    case tflite::BuiltinOperator::CONCAT_EMBEDDINGS:
+      return BuiltinOperator::CONCAT_EMBEDDINGS;
+      break;
+
+    case tflite::BuiltinOperator::SKIP_GRAM:
+      return BuiltinOperator::SKIP_GRAM;
+      break;
+
+    case tflite::BuiltinOperator::CALL:
+      return BuiltinOperator::CALL;
+      break;
+
+    case tflite::BuiltinOperator::CUSTOM:
+      return BuiltinOperator::CUSTOM;
+      break;
+
+    case tflite::BuiltinOperator::EMBEDDING_LOOKUP_SPARSE:
+      return BuiltinOperator::EMBEDDING_LOOKUP_SPARSE;
+      break;
+
+    case tflite::BuiltinOperator::PAD:
+      return BuiltinOperator::PAD;
+      break;
+
+    case tflite::BuiltinOperator::UNIDIRECTIONAL_SEQUENCE_RNN:
+      return BuiltinOperator::UNIDIRECTIONAL_SEQUENCE_RNN;
+      break;
+
+    case tflite::BuiltinOperator::GATHER:
+      return BuiltinOperator::GATHER;
+      break;
+
+    case tflite::BuiltinOperator::BATCH_TO_SPACE_ND:
+      return BuiltinOperator::BATCH_TO_SPACE_ND;
+      break;
+
+    case tflite::BuiltinOperator::SPACE_TO_BATCH_ND:
+      return BuiltinOperator::SPACE_TO_BATCH_ND;
+      break;
+
+    case tflite::BuiltinOperator::TRANSPOSE:
+      return BuiltinOperator::TRANSPOSE;
+      break;
+
+    case tflite::BuiltinOperator::MEAN:
+      return BuiltinOperator::MEAN;
+      break;
+
+    case tflite::BuiltinOperator::SUB:
+      return BuiltinOperator::SUB;
+      break;
+
+    case tflite::BuiltinOperator::DIV:
+      return BuiltinOperator::DIV;
+      break;
+
+    case tflite::BuiltinOperator::SQUEEZE:
+      return BuiltinOperator::SQUEEZE;
+      break;
+
+    default:
+      return BuiltinOperator::NONE;
+  }
+}
+
 void Model::PopulateOperatorsCode() {
   auto op_codes_vec = fb_model_->operator_codes();
 
@@ -774,8 +950,14 @@ void Model::PopulateOperatorsCode() {
   }
 
   for (auto it = op_codes_vec->begin(); it != op_codes_vec->end(); ++it) {
-    std::vector<u_char> buf = AssignVector<u_char>(it->data());
-    buffers_.push_back(std::move(buf));
+    auto custom_code = it->custom_code();
+
+    OperatorCode op_code {
+      .builtin_code = ConvertOperatorCode(it->builtin_code()),
+      .custom_code = custom_code? "\"" + custom_code->str() +"\"" : "\"\""
+    };
+
+    operators_code_.push_back(std::move(op_code));
   }
 }
 
