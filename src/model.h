@@ -46,7 +46,7 @@ enum class ActivationFunctionType: int8_t {
   SIGN_BIT
 };
 
-enum class Padding: int8_t { SAME, VALID };
+enum class Padding: int8_t { UNKNOWN = 0, SAME, VALID };
 
 enum class BuiltinOperator {
   NONE,

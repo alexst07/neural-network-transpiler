@@ -138,8 +138,10 @@ ActivationFunctionType Model::ConvertActivationFunction(
 Padding Model::ConvertPadding(tflite::Padding padding) {
   if (padding == tflite::Padding::SAME) {
     return Padding::SAME;
-  } else {
+  } else if (padding == tflite::Padding::VALID) {
     return Padding::VALID;
+  } else {
+    return Padding::UNKNOWN;
   }
 }
 
@@ -761,6 +763,7 @@ void Model::PopulateGraph() {
 void Model::PopulateBuffers() {
   auto buffer_vec = fb_model_->buffers();
 
+  // test if buffer_vec is null to avoid crash on flatbuffers
   if (!buffer_vec) {
     return;
   }

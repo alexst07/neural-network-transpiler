@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <tuple>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 
@@ -24,7 +25,7 @@ class TensorsHeader {
 
 class ModelGen {
  public:
-  ModelGen(Model& model): model_(model) {}
+  ModelGen(Model& model): model_(model), tensor_pos_(0) {}
 
   std::string Assembler();
 
@@ -33,18 +34,21 @@ class ModelGen {
   std::string GenerateTensorType(const Tensor& tensor, int count);
   std::string GenerateTensorsCode();
   std::string TensorTypeStr(TensorType type);
-  std::string ModelGen::TensorCppTypeStr(TensorType type);
+  std::string TensorCppTypeStr(TensorType type);
   std::string TensorDim(const std::vector<int>& dim);
   float TensorQuantizationScale(const QuantizationParameters& q);
   int TensorQuantizationZeroPoint(const QuantizationParameters& q);
   std::string CheckStatus(const boost::format& msg);
 
   std::string GenerateOpCode();
-  std::string GenerateOpInputs(const std::vector<int>& inputs);
+  std::string GenerateOpInputs(const std::vector<int>& inputs,
+      size_t num_params);
   std::string GenerateOpOutputs(const std::vector<int>& outputs);
   std::string OpTypeStr(BuiltinOperator op_type);
+  std::tuple<size_t, std::string> OpParams(const Operator& op);
 
   Model& model_;
+  size_t tensor_pos_;
 };
 
 class CppGen {

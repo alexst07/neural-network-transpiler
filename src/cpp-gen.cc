@@ -179,15 +179,25 @@ std::string ModelGen::GenerateTensorsCode() {
     ++count;
   }
 
+  tensor_pos_ = graph.Tensors().size();
+
   return ss.str();
 }
 
-std::string ModelGen::GenerateOpInputs(const std::vector<int>& inputs) {
+std::string ModelGen::GenerateOpInputs(const std::vector<int>& inputs,
+    size_t num_params) {
   // inputs loop
   std::string str_in = "";
 
+  // insert data params like conv filters params
   for (const auto& in_value : inputs) {
     str_in += " " + std::to_string(in_value) + ",";
+  }
+
+  // insert hiperparams like conv stride
+  size_t tensor_start_pos = tensor_pos_;
+  for (; tensor_pos_ < (tensor_start_pos + num_params); tensor_pos_++) {
+    str_in += " " + std::to_string(tensor_pos_) + ",";
   }
 
   str_in = str_in.substr(0, str_in.length() - 1);
@@ -277,15 +287,155 @@ std::string ModelGen::OpTypeStr(BuiltinOperator op_type) {
   }
 }
 
+std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
+  std::stringstream ss;
+  size_t num_params = 0;
+
+  auto check = [&op](BuiltinOptionsType type) {
+    if (op.builtin_op().type != type) {
+      FATAL(boost::format("Operator node type wrong"));
+    }
+  };
+
+  switch (op.op_code().builtin_code) {
+    case BuiltinOperator::ADD:
+      ss << "AddScalarInt32(0);\n";
+      num_params = 1;
+      break;
+
+    case BuiltinOperator::L2_POOL_2D:
+    case BuiltinOperator::MAX_POOL_2D:
+    case BuiltinOperator::AVERAGE_POOL_2D: {
+      check(BuiltinOptionsType::Pool2DOptions);
+      const Pool2DOptions& pool_options = static_cast<const Pool2DOptions&>(
+          op.builtin_op());
+
+      ss << "AddScalarInt32(" << static_cast<int>(pool_options.padding);
+      ss << ");\n";
+      ss << "AddScalarInt32(" << pool_options.stride_w << ");\n";
+      ss << "AddScalarInt32(" << pool_options.stride_h << ");\n";
+      ss << "AddScalarInt32(" << pool_options.filter_width << ");\n";
+      ss << "AddScalarInt32(" << pool_options.filter_height << ");\n";
+      ss << "AddScalarInt32(";
+      ss << static_cast<int>(pool_options.fused_activation_function);
+      ss << ");\n";
+      num_params = 6;
+      break;
+    }
+
+    case BuiltinOperator::CONV_2D: {
+      check(BuiltinOptionsType::Conv2DOptions);
+      const Conv2DOptions& conv_options = static_cast<const Conv2DOptions&>(
+          op.builtin_op());
+
+      ss << "AddScalarInt32(" << static_cast<int>(conv_options.padding);
+      ss << ");\n";
+      ss << "AddScalarInt32(" << conv_options.stride_w << ");\n";
+      ss << "AddScalarInt32(" << conv_options.stride_h << ");\n";
+      ss << "AddScalarInt32(";
+      ss << static_cast<int>(conv_options.fused_activation_function);
+      ss << ");\n";
+      num_params = 4;
+      break;
+    }
+
+    case BuiltinOperator::DEPTHWISE_CONV_2D: {
+      check(BuiltinOptionsType::DepthwiseConv2DOptions);
+      const DepthwiseConv2DOptions& dept_conv_options =
+          static_cast<const DepthwiseConv2DOptions&>(op.builtin_op());
+
+      ss << "AddScalarInt32(" << static_cast<int>(dept_conv_options.padding);
+      ss << ");\n";
+      ss << "AddScalarInt32(" << dept_conv_options.stride_w << ");\n";
+      ss << "AddScalarInt32(" << dept_conv_options.stride_h << ");\n";
+      ss << "AddScalarInt32(" << dept_conv_options.depth_multiplier << ");\n";
+      ss << "AddScalarInt32(";
+      ss << static_cast<int>(dept_conv_options.fused_activation_function);
+      ss << ");\n";
+      num_params = 5;
+      break;
+    }
+
+    case BuiltinOperator::FULLY_CONNECTED: {
+      check(BuiltinOptionsType::FullyConnectedOptions);
+      const FullyConnectedOptions& fully_con_options =
+          static_cast<const FullyConnectedOptions&>(op.builtin_op());
+
+      ss << "AddScalarInt32(";
+      ss << static_cast<int>(fully_con_options.fused_activation_function);
+      ss << ");\n";
+      num_params = 1;
+      break;
+    }
+
+    case BuiltinOperator::CONCATENATION: {
+      check(BuiltinOptionsType::ConcatenationOptions);
+      const ConcatenationOptions& concat_options =
+          static_cast<const ConcatenationOptions&>(op.builtin_op());
+
+      ss << "AddScalarInt32(" << concat_options.axis << ");\n";
+      ss << "AddScalarInt32(";
+      ss << static_cast<int>(concat_options.fused_activation_function);
+      ss << ");\n";
+      num_params = 2;
+      break;
+    }
+
+    case BuiltinOperator::SOFTMAX: {
+      check(BuiltinOptionsType::SoftmaxOptions);
+      const SoftmaxOptions& softmax_options =
+          static_cast<const SoftmaxOptions&>(op.builtin_op());
+
+      ss << "AddScalarFloat32(" << softmax_options.beta << ");\n";
+      num_params = 1;
+      break;
+    }
+
+    case BuiltinOperator::SPACE_TO_DEPTH: {
+      check(BuiltinOptionsType::SpaceToDepthOptions);
+      const SpaceToDepthOptions& space2depth_options =
+          static_cast<const SpaceToDepthOptions&>(op.builtin_op());
+
+      ss << "AddScalarInt32(" << space2depth_options.block_size << ");\n";
+      num_params = 1;
+      break;
+    }
+
+    case BuiltinOperator::LSTM: {
+      check(BuiltinOptionsType::LSTMOptions);
+      // TODO: Check better on TfLite how lstm parametes is filled
+      const LSTMOptions& lstm_options = static_cast<const LSTMOptions&>(
+          op.builtin_op());
+
+      ss << "AddScalarInt32(";
+      ss << static_cast<int>(lstm_options.fused_activation_function);
+      ss << ");\n";
+      ss << "AddScalarFloat32(" << lstm_options.cell_clip << ");\n";
+      ss << "AddScalarFloat32(" << lstm_options.proj_clip << ");\n";
+      num_params = 3;
+      break;
+    }
+
+    default:
+      num_params = 0;
+  }
+
+  return std::tuple<size_t, std::string>(num_params, ss.str());
+}
+
 std::string ModelGen::GenerateOpCode() {
   Graph& graph = model_.graph();
   std::stringstream ss;
 
   int count = 0;
   for (const auto& op: graph.Operators()) {
+    size_t num_params;
+    std::string str_params;
+    std::tie(num_params, str_params) = OpParams(op);
+    ss << str_params << "\n";
     ss << "uint32_t input_operands_" << count << "[";
-    ss << op.inputs().size() <<"] = {";
-    ss << GenerateOpInputs(op.inputs()) << " };\n";
+    ss << op.inputs().size() <<"] = { ";
+    ss << GenerateOpInputs(op.inputs(), num_params) << " };\n";
 
     ss << "uint32_t output_operands_" << count << "[";
     ss << op.outputs().size() <<"] = {";
