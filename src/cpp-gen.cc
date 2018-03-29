@@ -456,10 +456,44 @@ std::string ModelGen::GenerateOpCode() {
   return ss.str();
 }
 
+std::string ModelGen::GenerateInputsAndOutputs() {
+  Graph& graph = model_.graph();
+  std::stringstream ss;
+
+  size_t num_inputs = graph.Inputs().size();;
+  ss << "uint32_t input_indexes[" << num_inputs << "] = {";
+
+  std::string str_input;
+  for (int i : graph.Inputs()) {
+    str_input += " " + std::to_string(i) + ",";
+  }
+
+  str_input = str_input.substr(0, str_input.length() - 1);
+  ss << str_input << " };\n";
+
+  size_t num_outputs = graph.Outputs().size();
+  ss << "uint32_t output_indexes[" << num_outputs << "] = {";
+
+  std::string str_output;
+  for (int i : graph.Outputs()) {
+    str_output += " " + std::to_string(i) + ",";
+  }
+
+  str_output = str_output.substr(0, str_output.length() - 1);
+  ss << str_output << " };\n";
+
+  ss << "ANeuralNetworksModel_identifyInputsAndOutputs(model, "
+     << num_inputs << ", input_indexes, " << num_outputs
+     << ", output_indexes);\n";
+
+  return ss.str();
+}
+
 std::string ModelGen::Assembler() {
   std::string code;
   code = GenerateTensorsCode();
   code += GenerateOpCode();
+  code += GenerateInputsAndOutputs();
 
   return code;
 }

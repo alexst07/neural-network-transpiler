@@ -46,6 +46,7 @@ class ModelGen {
   std::string GenerateOpOutputs(const std::vector<int>& outputs);
   std::string OpTypeStr(BuiltinOperator op_type);
   std::tuple<size_t, std::string> OpParams(const Operator& op);
+  std::string GenerateInputsAndOutputs();
 
   Model& model_;
   size_t tensor_pos_;
