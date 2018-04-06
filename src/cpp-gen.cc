@@ -30,6 +30,7 @@ std::string TensorsHeader::Assembler() {
 
 std::string ModelGen::Generate() {
   std::string str_init = "Init";
+  return str_init;
 }
 
 std::string ModelGen::TensorTypeStr(TensorType type) {
@@ -489,11 +490,71 @@ std::string ModelGen::GenerateInputsAndOutputs() {
   return ss.str();
 }
 
+std::string ModelGen::GenerateInputFunctions() {
+  Graph& graph = model_.graph();
+  std::string str_input;
+
+  for (int i : graph.Inputs()) {
+    const Tensor& tensor = graph.Tensors()[i];
+    str_input += "void SetInput_" + std::to_string(i) +
+        "(ANeuralNetworksExecution *run, float";
+
+    for (int shape_i : tensor.shape()) {
+      str_input += "[" + std::to_string(shape_i) + "]";
+    }
+
+    str_input += " input) {\n";
+    str_input += "  ANeuralNetworksExecution_setInput(run, " +
+        std::to_string(i) + ", NULL, input, sizeof(input));\n";
+
+    str_input += "}\n\n";
+  }
+
+  return str_input;
+}
+
+std::string ModelGen::GenerateOutputFunctions() {
+  Graph& graph = model_.graph();
+  std::string str_output;
+
+  for (int i : graph.Outputs()) {
+    const Tensor& tensor = graph.Tensors()[i];
+    str_output += "void SetOutput_" + std::to_string(i) +
+        "(ANeuralNetworksExecution *run, float";
+
+    for (int shape_i : tensor.shape()) {
+      str_output += "[" + std::to_string(shape_i) + "]";
+    }
+
+    str_output += " output) {\n";
+    str_output += "  ANeuralNetworksExecution_setOutput(run, " +
+        std::to_string(i) + ", NULL, output, sizeof(output));\n";
+
+    str_output += "}\n\n";
+  }
+
+  return str_output;
+}
+
+std::string ModelGen::GenerateHeader() {
+  std::string str =
+#include "templates/top_nn_cc.tpl"
+  ;
+  return str;
+}
+
 std::string ModelGen::Assembler() {
   std::string code;
-  code = GenerateTensorsCode();
+  code = GenerateHeader();
+  code += GenerateTensorsCode();
   code += GenerateOpCode();
   code += GenerateInputsAndOutputs();
+
+  // close model function
+  code += "return true;\n}\n\n";
+
+  code += GenerateInputFunctions();
+  code += GenerateOutputFunctions();
 
   return code;
 }
