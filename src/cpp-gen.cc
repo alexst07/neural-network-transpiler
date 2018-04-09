@@ -180,6 +180,7 @@ std::string ModelGen::GenerateTensorsCode() {
     ++count;
   }
 
+  count_operands_ = count;
   tensor_pos_ = graph.Tensors().size();
 
   return ss.str();
@@ -288,7 +289,27 @@ std::string ModelGen::OpTypeStr(BuiltinOperator op_type) {
   }
 }
 
-std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
+std::string ModelGen::AddScalarInt32(int value) {
+  std::stringstream ss;
+
+  ss << "CHECK_ADD_SCALAR(AddScalarInt32(" << count_operands_ << ", "
+     << value << "))\n";
+
+  ++count_operands_;
+  return ss.str();
+}
+
+std::string ModelGen::AddScalarFloat32(float value) {
+  std::stringstream ss;
+
+  ss << "CHECK_ADD_SCALAR(AddScalarFloat32(" << count_operands_ << ", "
+     << value << "))\n";
+
+  ++count_operands_;
+  return ss.str();
+}
+
+std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op, int id) {
   std::stringstream ss;
   size_t num_params = 0;
 
@@ -300,7 +321,7 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
 
   switch (op.op_code().builtin_code) {
     case BuiltinOperator::ADD:
-      ss << "AddScalarInt32(0);\n";
+      ss << AddScalarInt32(0);
       num_params = 1;
       break;
 
@@ -311,15 +332,13 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const Pool2DOptions& pool_options = static_cast<const Pool2DOptions&>(
           op.builtin_op());
 
-      ss << "AddScalarInt32(" << static_cast<int>(pool_options.padding);
-      ss << ");\n";
-      ss << "AddScalarInt32(" << pool_options.stride_w << ");\n";
-      ss << "AddScalarInt32(" << pool_options.stride_h << ");\n";
-      ss << "AddScalarInt32(" << pool_options.filter_width << ");\n";
-      ss << "AddScalarInt32(" << pool_options.filter_height << ");\n";
-      ss << "AddScalarInt32(";
-      ss << static_cast<int>(pool_options.fused_activation_function);
-      ss << ");\n";
+      ss << AddScalarInt32(static_cast<int>(pool_options.padding));
+      ss << AddScalarInt32(pool_options.stride_w);
+      ss << AddScalarInt32(pool_options.stride_h);
+      ss << AddScalarInt32(pool_options.filter_width);
+      ss << AddScalarInt32(pool_options.filter_height);
+      ss << AddScalarInt32(static_cast<int>(
+          pool_options.fused_activation_function));
       num_params = 6;
       break;
     }
@@ -329,13 +348,11 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const Conv2DOptions& conv_options = static_cast<const Conv2DOptions&>(
           op.builtin_op());
 
-      ss << "AddScalarInt32(" << static_cast<int>(conv_options.padding);
-      ss << ");\n";
-      ss << "AddScalarInt32(" << conv_options.stride_w << ");\n";
-      ss << "AddScalarInt32(" << conv_options.stride_h << ");\n";
-      ss << "AddScalarInt32(";
-      ss << static_cast<int>(conv_options.fused_activation_function);
-      ss << ");\n";
+      ss << AddScalarInt32(static_cast<int>(conv_options.padding));
+      ss << AddScalarInt32(conv_options.stride_w);
+      ss << AddScalarInt32(conv_options.stride_h);
+      ss << AddScalarInt32(static_cast<int>(
+          conv_options.fused_activation_function));
       num_params = 4;
       break;
     }
@@ -345,14 +362,12 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const DepthwiseConv2DOptions& dept_conv_options =
           static_cast<const DepthwiseConv2DOptions&>(op.builtin_op());
 
-      ss << "AddScalarInt32(" << static_cast<int>(dept_conv_options.padding);
-      ss << ");\n";
-      ss << "AddScalarInt32(" << dept_conv_options.stride_w << ");\n";
-      ss << "AddScalarInt32(" << dept_conv_options.stride_h << ");\n";
-      ss << "AddScalarInt32(" << dept_conv_options.depth_multiplier << ");\n";
-      ss << "AddScalarInt32(";
-      ss << static_cast<int>(dept_conv_options.fused_activation_function);
-      ss << ");\n";
+      ss << AddScalarInt32(static_cast<int>(dept_conv_options.padding));
+      ss << AddScalarInt32(dept_conv_options.stride_w);
+      ss << AddScalarInt32(dept_conv_options.stride_h);
+      ss << AddScalarInt32(dept_conv_options.depth_multiplier);
+      ss << AddScalarInt32(static_cast<int>(
+          dept_conv_options.fused_activation_function));
       num_params = 5;
       break;
     }
@@ -362,9 +377,8 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const FullyConnectedOptions& fully_con_options =
           static_cast<const FullyConnectedOptions&>(op.builtin_op());
 
-      ss << "AddScalarInt32(";
-      ss << static_cast<int>(fully_con_options.fused_activation_function);
-      ss << ");\n";
+      ss << AddScalarInt32(static_cast<int>(
+          fully_con_options.fused_activation_function));
       num_params = 1;
       break;
     }
@@ -374,10 +388,9 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const ConcatenationOptions& concat_options =
           static_cast<const ConcatenationOptions&>(op.builtin_op());
 
-      ss << "AddScalarInt32(" << concat_options.axis << ");\n";
-      ss << "AddScalarInt32(";
-      ss << static_cast<int>(concat_options.fused_activation_function);
-      ss << ");\n";
+      ss << AddScalarInt32(concat_options.axis);
+      ss << AddScalarInt32(static_cast<int>(
+          concat_options.fused_activation_function));
       num_params = 2;
       break;
     }
@@ -387,7 +400,7 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const SoftmaxOptions& softmax_options =
           static_cast<const SoftmaxOptions&>(op.builtin_op());
 
-      ss << "AddScalarFloat32(" << softmax_options.beta << ");\n";
+      ss << AddScalarFloat32(softmax_options.beta);
       num_params = 1;
       break;
     }
@@ -397,7 +410,7 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const SpaceToDepthOptions& space2depth_options =
           static_cast<const SpaceToDepthOptions&>(op.builtin_op());
 
-      ss << "AddScalarInt32(" << space2depth_options.block_size << ");\n";
+      ss << AddScalarInt32(space2depth_options.block_size);
       num_params = 1;
       break;
     }
@@ -408,11 +421,10 @@ std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
       const LSTMOptions& lstm_options = static_cast<const LSTMOptions&>(
           op.builtin_op());
 
-      ss << "AddScalarInt32(";
-      ss << static_cast<int>(lstm_options.fused_activation_function);
-      ss << ");\n";
-      ss << "AddScalarFloat32(" << lstm_options.cell_clip << ");\n";
-      ss << "AddScalarFloat32(" << lstm_options.proj_clip << ");\n";
+      ss << AddScalarInt32(static_cast<int>(
+          lstm_options.fused_activation_function));
+      ss << AddScalarInt32(lstm_options.cell_clip);
+      ss << AddScalarInt32(lstm_options.proj_clip);
       num_params = 3;
       break;
     }
@@ -432,7 +444,7 @@ std::string ModelGen::GenerateOpCode() {
   for (const auto& op: graph.Operators()) {
     size_t num_params;
     std::string str_params;
-    std::tie(num_params, str_params) = OpParams(op);
+    std::tie(num_params, str_params) = OpParams(op, count_operands_);
     ss << str_params << "\n";
     ss << "uint32_t input_operands_" << count << "[";
     ss << op.inputs().size() <<"] = { ";
@@ -496,18 +508,18 @@ std::string ModelGen::GenerateInputFunctions() {
 
   for (int i : graph.Inputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_input += "void SetInput_" + std::to_string(i) +
-        "(ANeuralNetworksExecution *run, float";
+    str_input += "int SetInput_" + std::to_string(i) + "(float";
 
     for (int shape_i : tensor.shape()) {
       str_input += "[" + std::to_string(shape_i) + "]";
     }
 
     str_input += " input) {\n";
-    str_input += "  ANeuralNetworksExecution_setInput(run, " +
+    str_input += "  int status = ANeuralNetworksExecution_setInput(run, " +
         std::to_string(i) + ", NULL, input, sizeof(input));\n";
-
-    str_input += "}\n\n";
+    str_input += CheckStatus(boost::format(
+        "ANeuralNetworksExecution_setInput failed"));
+    str_input += "  return true;\n}\n\n";
   }
 
   return str_input;
@@ -519,18 +531,19 @@ std::string ModelGen::GenerateOutputFunctions() {
 
   for (int i : graph.Outputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_output += "void SetOutput_" + std::to_string(i) +
-        "(ANeuralNetworksExecution *run, float";
+    str_output += "bool SetOutput_" + std::to_string(i) + "(float";
 
     for (int shape_i : tensor.shape()) {
       str_output += "[" + std::to_string(shape_i) + "]";
     }
 
     str_output += " output) {\n";
-    str_output += "  ANeuralNetworksExecution_setOutput(run, " +
+    str_output += "  int status = ANeuralNetworksExecution_setOutput(run, " +
         std::to_string(i) + ", NULL, output, sizeof(output));\n";
 
-    str_output += "}\n\n";
+    str_output += CheckStatus(boost::format(
+        "ANeuralNetworksExecution_setOutput failed"));
+    str_output += "  return true;\n}\n\n";
   }
 
   return str_output;
@@ -559,10 +572,63 @@ std::string ModelGen::Assembler() {
   return code;
 }
 
+std::string ModelGenHeader::GenerateOutputHeader() {
+  Graph& graph = model_.graph();
+  std::string str_output;
+
+  for (int i : graph.Outputs()) {
+    const Tensor& tensor = graph.Tensors()[i];
+    str_output += "bool SetOutput_" + std::to_string(i) + "(float";
+
+    for (int shape_i : tensor.shape()) {
+      str_output += "[" + std::to_string(shape_i) + "]";
+    }
+
+    str_output += " output);\n";
+  }
+
+  return str_output;
+}
+
+std::string ModelGenHeader::GenerateInputHeader() {
+  Graph& graph = model_.graph();
+  std::string str_input;
+
+  for (int i : graph.Inputs()) {
+    const Tensor& tensor = graph.Tensors()[i];
+    str_input += "bool SetInput_" + std::to_string(i) + "(float";
+
+    for (int shape_i : tensor.shape()) {
+      str_input += "[" + std::to_string(shape_i) + "]";
+    }
+
+    str_input += " input);\n";
+  }
+
+  return str_input;
+}
+
+std::string ModelGenHeader::GenerateHeader() {
+  std::string str =
+  #include "templates/top_nn_h.tpl"
+  ;
+  return str;
+}
+
+std::string ModelGenHeader::Assembler() {
+  std::string str = GenerateHeader();
+  str += GenerateInputHeader();
+  str += GenerateOutputHeader();
+  str += "}";
+
+  return str;
+}
+
 void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,
     const boost::filesystem::path& path) {
   GenTensorsDataFile(path);
   GenCppFile(path);
+  GenHFile(path);
 }
 
 void CppGen::GenTensorsDataFile(const boost::filesystem::path& path) {
@@ -588,6 +654,20 @@ void CppGen::GenCppFile(const boost::filesystem::path& path) {
   }
 
   ModelGen model(model_);
+  std::string code = model.Assembler();
+  cc_file.write(code.c_str(), code.length());
+  cc_file.close();
+}
+
+void CppGen::GenHFile(const boost::filesystem::path& path) {
+  std::ofstream cc_file(path.string() + "/nn.h",
+      std::ofstream::out | std::ofstream::binary);
+
+  if (!cc_file.is_open()) {
+    FATAL("Fail on create nn.h file")
+  }
+
+  ModelGenHeader model(model_);
   std::string code = model.Assembler();
   cc_file.write(code.c_str(), code.length());
   cc_file.close();

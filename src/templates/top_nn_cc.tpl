@@ -3,7 +3,8 @@
 static ANeuralNetworksMemory* mem = NULL;\n\
 static int fd;\n\
 static ANeuralNetworksModel* model = NULL;\n\
-statuc ANeuralNetworksCompilation* compilation = NULL;\n\
+static ANeuralNetworksCompilation* compilation = NULL;\n\
+static ANeuralNetworksExecution* run = NULL;\n\
 \n\
 bool OpenTrainingData(const char* file_name) {\n\
   int fd = open(file_name, O_RDONLY);\n\
@@ -58,25 +59,80 @@ bool Compile(int32_t preference) {\n\
 }\n\
 \n\
 \n\
-bool CreateExecutionInstance(ANeuralNetworksExecution** run) {\n\
+bool Execute() {\n\
   int status = ANeuralNetworksExecution_create(compilation, run);\n\
 \n\
+    if (status != ANEURALNETWORKS_NO_ERROR) {\n\
+      __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n\
+                          \"ANeuralNetworksMemory_createFromFd failed\");\n\
+      return false;\n\
+    }\n\
+\n\
+  ANeuralNetworksEvent* run_end = NULL;\n\
+  ANeuralNetworksExecution_startCompute(run, &run_end);\n\
+  ANeuralNetworksEvent_wait(run_end);\n\
+  ANeuralNetworksEvent_free(run_end);\n\
+  ANeuralNetworksExecution_free(run);\n\
+}\n\
+\n\
+void Cleanup() {\n\
+  ANeuralNetworksCompilation_free(compilation);\n\
+  ANeuralNetworksModel_free(model);\n\
+  ANeuralNetworksMemory_free(mem);\n\
+}\n\
+\n\
+#define CHECK_ADD_SCALAR(x)                           \\\n\
+  if (!x) {                                           \\\n\
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,   \\\n\
+        \"AddScalar Failed\");                        \\\n\
+    return false;                                     \\\n\
+  }\n\
+\n\
+bool AddScalarInt32(int32_t id, int value) {\n\
+  int status = ANeuralNetworksOperandType operand_type{.type = ANEURALNETWORKS_INT32};\n\
   if (status != ANEURALNETWORKS_NO_ERROR) {\n\
     __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n\
-                        \"ANeuralNetworksMemory_createFromFd failed\");\n\
+        \"ANeuralNetworksOperandType failed\");\n\
+    return false;\n\
+  }\n\
+  status =  ANeuralNetworksModel_addOperand(nn_model, &operand_type);\n\
+  if (status != ANEURALNETWORKS_NO_ERROR) {\n\
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n\
+        \"ANeuralNetworksModel_addOperand failed\");\n\
+    return false;\n\
+  }\n\
+  status = ANeuralNetworksModel_setOperandValue(model, id, &value, sizeof(int32_t)));\n\
+  if (status != ANEURALNETWORKS_NO_ERROR) {\n\
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n\
+        \"ANeuralNetworksModel_setOperandValue failed\");\n\
     return false;\n\
   }\n\
 \n\
   return true;\n\
 }\n\
 \n\
-bool Execute(ANeuralNetworksExecution* run) {\n\
-  ANeuralNetworksEvent* run_end = NULL;\n\
-  ANeuralNetworksExecution_startCompute(run, &run_end);\n\
-  ANeuralNetworksEvent_wait(run_end);\n\
-  ANeuralNetworksEvent_free(run_end);\n\
+bool AddScalarFloat32(int32_t id, float value) {\n\
+  int status = ANeuralNetworksOperandType operand_type{.type = ANEURALNETWORKS_FLOAT32};\n\
+  if (status != ANEURALNETWORKS_NO_ERROR) {\n\
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n\
+        \"ANeuralNetworksOperandType failed\");\n\
+    return false;\n\
+  }\n\
+  status =  ANeuralNetworksModel_addOperand(nn_model, &operand_type);\n\
+  if (status != ANEURALNETWORKS_NO_ERROR) {\n\
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n\
+        \"ANeuralNetworksModel_addOperand failed\");\n\
+    return false;\n\
+  }\n\
+  status = ANeuralNetworksModel_setOperandValue(model, id, &value, sizeof(float)));\n\
+  if (status != ANEURALNETWORKS_NO_ERROR) {\n\
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,\n\
+        \"ANeuralNetworksModel_setOperandValue failed\");\n\
+    return false;\n\
+  }\n\
+\n\
+  return true;\n\
 }\n\
 \n\
- bool BuildModel() {\n\
+bool BuildModel() {\n\
  ";
-

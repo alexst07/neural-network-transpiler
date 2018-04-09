@@ -45,14 +45,29 @@ class ModelGen {
       size_t num_params);
   std::string GenerateOpOutputs(const std::vector<int>& outputs);
   std::string OpTypeStr(BuiltinOperator op_type);
-  std::tuple<size_t, std::string> OpParams(const Operator& op);
+  std::tuple<size_t, std::string> OpParams(const Operator& op, int id);
   std::string GenerateInputsAndOutputs();
   std::string GenerateInputFunctions();
   std::string GenerateOutputFunctions();
   std::string GenerateHeader();
+  std::string AddScalarInt32(int value);
+  std::string AddScalarFloat32(float value);
 
   Model& model_;
   size_t tensor_pos_;
+  int count_operands_;
+};
+
+class ModelGenHeader {
+ public:
+  ModelGenHeader(Model& model): model_(model) {}
+
+  std::string Assembler();
+ private:
+  std::string GenerateHeader();
+  std::string GenerateInputHeader();
+  std::string GenerateOutputHeader();
+  Model& model_;
 };
 
 class CppGen {
@@ -65,6 +80,7 @@ class CppGen {
  private:
   void GenTensorsDataFile(const boost::filesystem::path& path);
   void GenCppFile(const boost::filesystem::path& path);
+  void GenHFile(const boost::filesystem::path& path);
   Model& model_;
 };
 
