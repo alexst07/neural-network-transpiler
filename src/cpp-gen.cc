@@ -502,13 +502,32 @@ std::string ModelGen::GenerateInputsAndOutputs() {
   return ss.str();
 }
 
+std::string TensorType(const Tensor& tensor) {
+  switch (tensor.tensor_type()) {
+    case TensorType::FLOAT32:
+      return "float32_t";
+      break;
+
+    case TensorType::INT32:
+      return "int32_t";
+      break;
+
+    case TensorType::UINT8:
+      return "int8_t";
+      break;
+
+    default:
+      FATAL("Tensor type not valid for Android NNAPI")
+  }
+}
+
 std::string ModelGen::GenerateInputFunctions() {
   Graph& graph = model_.graph();
   std::string str_input;
 
   for (int i : graph.Inputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_input += "int SetInput_" + std::to_string(i) + "(float";
+    str_input += "int SetInput_" + std::to_string(i) + "(" + TensorType(tensor);
 
     for (int shape_i : tensor.shape()) {
       str_input += "[" + std::to_string(shape_i) + "]";
@@ -531,7 +550,8 @@ std::string ModelGen::GenerateOutputFunctions() {
 
   for (int i : graph.Outputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_output += "bool SetOutput_" + std::to_string(i) + "(float";
+    str_output += "bool SetOutput_" + std::to_string(i) + "(" +
+        TensorType(tensor);
 
     for (int shape_i : tensor.shape()) {
       str_output += "[" + std::to_string(shape_i) + "]";
@@ -578,7 +598,8 @@ std::string ModelGenHeader::GenerateOutputHeader() {
 
   for (int i : graph.Outputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_output += "bool SetOutput_" + std::to_string(i) + "(float";
+    str_output += "bool SetOutput_" + std::to_string(i) + "(" +
+        TensorType(tensor);
 
     for (int shape_i : tensor.shape()) {
       str_output += "[" + std::to_string(shape_i) + "]";
@@ -596,7 +617,8 @@ std::string ModelGenHeader::GenerateInputHeader() {
 
   for (int i : graph.Inputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_input += "bool SetInput_" + std::to_string(i) + "(float";
+    str_input += "bool SetInput_" + std::to_string(i) + "(" +
+        TensorType(tensor);
 
     for (int shape_i : tensor.shape()) {
       str_input += "[" + std::to_string(shape_i) + "]";
