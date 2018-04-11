@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <functional>
+#include <boost/algorithm/string.hpp>
 
 #include "exception.h"
 
@@ -551,7 +553,7 @@ std::string ModelGen::GenerateInputFunctions() {
         ", " + std::to_string(size) + ");\n";
 
     str_input += CheckStatus(boost::format(
-        "ANeuralNetworksExecution_setOutput failed"));
+        "ANeuralNetworksExecution_setInput failed"));
 
     start += size;
   }
@@ -624,11 +626,63 @@ std::string ModelGenHeader::Assembler() {
   return str;
 }
 
-void CppGen::GenFiles(const std::vector<std::string>& namespace_vec,
-    const boost::filesystem::path& path) {
+template<class Fn>
+int ModelGenJni::TotalSize(Fn&& fn) {
+  Graph& graph = model_.graph();
+  int total_size = 0;
+
+  for (int i : fn()) {
+    int size = 1;
+    const Tensor& tensor = graph.Tensors()[i];
+
+    for (int shape_i : tensor.shape()) {
+      size *= shape_i;
+
+      if (tensor.tensor_type() == TensorType::FLOAT32 ||
+          tensor.tensor_type() == TensorType::INT32) {
+        size *= 4;
+      }
+    }
+    total_size += size;
+  }
+
+  return total_size;
+}
+
+std::string ModelGenJni::GenerateJni() {
+  std::string str =
+#include "templates/jni.tpl"
+  ;
+
+  Graph& graph = model_.graph();
+
+  auto fn_in = std::bind(&Graph::Inputs, &graph);
+  int total_input_size = TotalSize(fn_in);
+
+  auto fn_out = std::bind(&Graph::Outputs, &graph);
+  int total_output_size = TotalSize(fn_out);
+
+  boost::replace_all(str, "@TOTAL_INPUT_SIZE",
+      std::to_string(total_input_size));
+  boost::replace_all(str, "@TOTAL_OUTPUT_SIZE",
+      std::to_string(total_output_size));
+  boost::replace_all(str, "@JAVA_PACKAGE", java_package_);
+
+  return str;
+}
+
+std::string ModelGenJni::Assembler() {
+  boost::replace_all(java_package_, ".", "_");
+  std::string str = GenerateJni();
+  return str;
+}
+
+void CppGen::GenFiles(const boost::filesystem::path& path,
+    const std::string& java_path) {
   GenTensorsDataFile(path);
   GenCppFile(path);
   GenHFile(path);
+  GenJniFile(path, java_path);
 }
 
 void CppGen::GenTensorsDataFile(const boost::filesystem::path& path) {
@@ -671,6 +725,21 @@ void CppGen::GenHFile(const boost::filesystem::path& path) {
   std::string code = model.Assembler();
   cc_file.write(code.c_str(), code.length());
   cc_file.close();
+}
+
+void CppGen::GenJniFile(const boost::filesystem::path& path,
+    const std::string& java_package) {
+  std::ofstream jni_file(path.string() + "/jni.cc",
+      std::ofstream::out | std::ofstream::binary);
+
+  if (!jni_file.is_open()) {
+    FATAL("Fail on create nn.h file")
+  }
+
+  ModelGenJni model(model_, java_package);
+  std::string code = model.Assembler();
+  jni_file.write(code.c_str(), code.length());
+  jni_file.close();
 }
 
 }

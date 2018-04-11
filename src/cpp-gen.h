@@ -69,17 +69,37 @@ class ModelGenHeader {
   Model& model_;
 };
 
+class ModelGenJni {
+ public:
+  ModelGenJni(Model& model, const std::string& java_package)
+      : model_(model)
+      , java_package_(java_package) {}
+
+  std::string Assembler();
+ private:
+  std::string GenerateJni();
+
+  template<class Fn>
+  int TotalSize(Fn&& fn);
+
+  Model& model_;
+  std::string java_package_;
+};
+
 class CppGen {
  public:
   CppGen(Model& model): model_(model) {}
 
-  void GenFiles(const std::vector<std::string>& namespace_vec,
-      const boost::filesystem::path& path);
+  void GenFiles(const boost::filesystem::path& path,
+      const std::string& java_path);
 
  private:
   void GenTensorsDataFile(const boost::filesystem::path& path);
   void GenCppFile(const boost::filesystem::path& path);
   void GenHFile(const boost::filesystem::path& path);
+  void GenJniFile(const boost::filesystem::path& path,
+      const std::string& java_package);
+
   Model& model_;
 };
 

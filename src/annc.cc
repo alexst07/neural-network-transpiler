@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   annc::CppGen cpp(model);
   std::vector<std::string> namespace_vec = {"test"};
   boost::filesystem::path path(".");
-  cpp.GenFiles(namespace_vec, path);
+  cpp.GenFiles(path, "java.example");
 
   annc::DumpGraph dump(model);
   std::cout << dump.Dot();
