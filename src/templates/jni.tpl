@@ -59,3 +59,56 @@ Java_com_example_ModelWrapper_execute(
     return;
   }
 }
+
+extern "C"
+JNIEXPORT void
+JNICALL
+Java_com_example_ModelWrapper_setInput(
+    JNIEnv *env,
+    jobject /* this */,
+    jbyteArray input_data) {
+  jsize input_len = env->GetArrayLength(input_data);
+
+  if (input_len != @TOTAL_INPUT_SIZE) {
+    throwException("Input data has wrong length");
+    return;
+  }
+
+  jbyte *bytes = env->GetByteArrayElements(input_data, 0);
+
+  if (bytes == NULL) {
+    throwException("Error on elements from java array input data");
+    return;
+  }
+
+  if (!nnc::SetInput(bytes)) {
+    env->ReleaseByteArrayElements(input_data, bytes, JNI_ABORT);
+    throwException("Error on execute model");
+    return;
+  }
+
+  env->ReleaseByteArrayElements(input_data, bytes, 0);
+}
+
+extern "C"
+JNIEXPORT jbyteArray
+JNICALL
+Java_com_example_ModelWrapper_getOutput(
+    JNIEnv *env,
+    jobject /* this */) {
+  jbyteArray result;
+  result = env->NewByteArray(@TOTAL_OUTPUT_SIZE);
+  if (result == NULL) {
+    throwException("out of memory");
+    return NULL; /* out of memory error thrown */
+  }
+
+  jbyte data[@TOTAL_OUTPUT_SIZE];
+  if (!nnc::SetOutput(data)) {
+    throwException("Error on execute model");
+    return;
+  }
+
+  (*env)->SetIntArrayRegion(result, 0, @TOTAL_OUTPUT_SIZE, data);
+  return result;
+}

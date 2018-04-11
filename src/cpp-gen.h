@@ -52,6 +52,7 @@ class ModelGen {
   std::string GenerateHeader();
   std::string AddScalarInt32(int value);
   std::string AddScalarFloat32(float value);
+  int TensorSize(const Tensor& tensor);
 
   Model& model_;
   size_t tensor_pos_;
@@ -65,8 +66,6 @@ class ModelGenHeader {
   std::string Assembler();
  private:
   std::string GenerateHeader();
-  std::string GenerateInputHeader();
-  std::string GenerateOutputHeader();
   Model& model_;
 };
 

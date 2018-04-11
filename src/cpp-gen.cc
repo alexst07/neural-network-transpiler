@@ -521,25 +521,42 @@ std::string TensorType(const Tensor& tensor) {
   }
 }
 
+int ModelGen::TensorSize(const Tensor& tensor) {
+  int size = 1;
+  for (int shape_i : tensor.shape()) {
+    size *= shape_i;
+
+    if (tensor.tensor_type() == TensorType::FLOAT32 ||
+        tensor.tensor_type() == TensorType::INT32) {
+      size *= 4;
+    }
+  }
+
+  return size;
+}
+
 std::string ModelGen::GenerateInputFunctions() {
   Graph& graph = model_.graph();
   std::string str_input;
 
+  str_input += "bool SetInput(const void *buffer) {\n";
+
+  int start = 0;
   for (int i : graph.Inputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_input += "int SetInput_" + std::to_string(i) + "(" + TensorType(tensor);
+    int size = TensorSize(tensor);
 
-    for (int shape_i : tensor.shape()) {
-      str_input += "[" + std::to_string(shape_i) + "]";
-    }
-
-    str_input += " input) {\n";
     str_input += "  int status = ANeuralNetworksExecution_setInput(run, " +
-        std::to_string(i) + ", NULL, input, sizeof(input));\n";
+        std::to_string(i) + ", NULL, buffer + " + std::to_string(start) +
+        ", " + std::to_string(size) + ");\n";
+
     str_input += CheckStatus(boost::format(
-        "ANeuralNetworksExecution_setInput failed"));
-    str_input += "  return true;\n}\n\n";
+        "ANeuralNetworksExecution_setOutput failed"));
+
+    start += size;
   }
+
+  str_input += "  return true;\n}\n\n";
 
   return str_input;
 }
@@ -548,23 +565,24 @@ std::string ModelGen::GenerateOutputFunctions() {
   Graph& graph = model_.graph();
   std::string str_output;
 
+  str_output += "bool SetOutput(void *buffer) {\n";
+
+  int start = 0;
   for (int i : graph.Outputs()) {
     const Tensor& tensor = graph.Tensors()[i];
-    str_output += "bool SetOutput_" + std::to_string(i) + "(" +
-        TensorType(tensor);
+    int size = TensorSize(tensor);
 
-    for (int shape_i : tensor.shape()) {
-      str_output += "[" + std::to_string(shape_i) + "]";
-    }
-
-    str_output += " output) {\n";
     str_output += "  int status = ANeuralNetworksExecution_setOutput(run, " +
-        std::to_string(i) + ", NULL, output, sizeof(output));\n";
+        std::to_string(i) + ", NULL, buffer + " + std::to_string(start) +
+        ", " + std::to_string(size) + ");\n";
 
     str_output += CheckStatus(boost::format(
         "ANeuralNetworksExecution_setOutput failed"));
-    str_output += "  return true;\n}\n\n";
+
+    start += size;
   }
+
+  str_output += "  return true;\n}\n\n";
 
   return str_output;
 }
@@ -592,44 +610,6 @@ std::string ModelGen::Assembler() {
   return code;
 }
 
-std::string ModelGenHeader::GenerateOutputHeader() {
-  Graph& graph = model_.graph();
-  std::string str_output;
-
-  for (int i : graph.Outputs()) {
-    const Tensor& tensor = graph.Tensors()[i];
-    str_output += "bool SetOutput_" + std::to_string(i) + "(" +
-        TensorType(tensor);
-
-    for (int shape_i : tensor.shape()) {
-      str_output += "[" + std::to_string(shape_i) + "]";
-    }
-
-    str_output += " output);\n";
-  }
-
-  return str_output;
-}
-
-std::string ModelGenHeader::GenerateInputHeader() {
-  Graph& graph = model_.graph();
-  std::string str_input;
-
-  for (int i : graph.Inputs()) {
-    const Tensor& tensor = graph.Tensors()[i];
-    str_input += "bool SetInput_" + std::to_string(i) + "(" +
-        TensorType(tensor);
-
-    for (int shape_i : tensor.shape()) {
-      str_input += "[" + std::to_string(shape_i) + "]";
-    }
-
-    str_input += " input);\n";
-  }
-
-  return str_input;
-}
-
 std::string ModelGenHeader::GenerateHeader() {
   std::string str =
   #include "templates/top_nn_h.tpl"
@@ -639,8 +619,6 @@ std::string ModelGenHeader::GenerateHeader() {
 
 std::string ModelGenHeader::Assembler() {
   std::string str = GenerateHeader();
-  str += GenerateInputHeader();
-  str += GenerateOutputHeader();
   str += "}";
 
   return str;
