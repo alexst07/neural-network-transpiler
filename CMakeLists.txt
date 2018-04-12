@@ -26,7 +26,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 # find packages
 #
 find_package(Threads)
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 
 #
 # include directories
@@ -47,4 +47,5 @@ add_executable(annc ${SRCS})
 target_link_libraries(annc
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
+  ${Boost_LIBRARIES}
   /usr/local/lib/libflatbuffers.a)

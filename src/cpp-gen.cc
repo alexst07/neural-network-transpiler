@@ -311,7 +311,7 @@ std::string ModelGen::AddScalarFloat32(float value) {
   return ss.str();
 }
 
-std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op, int id) {
+std::tuple<size_t, std::string> ModelGen::OpParams(const Operator& op) {
   std::stringstream ss;
   size_t num_params = 0;
 
@@ -446,7 +446,7 @@ std::string ModelGen::GenerateOpCode() {
   for (const auto& op: graph.Operators()) {
     size_t num_params;
     std::string str_params;
-    std::tie(num_params, str_params) = OpParams(op, count_operands_);
+    std::tie(num_params, str_params) = OpParams(op);
     ss << str_params << "\n";
     ss << "uint32_t input_operands_" << count << "[";
     ss << op.inputs().size() <<"] = { ";
@@ -686,22 +686,28 @@ void CppGen::GenFiles(const boost::filesystem::path& path,
 }
 
 void CppGen::GenTensorsDataFile(const boost::filesystem::path& path) {
-  std::ofstream tensors_file(path.string() + "/weights_biases.bin",
+  const boost::filesystem::path& fname("weights_biases.bin");
+  std::string str_path = (path / fname).string();
+  std::ofstream tensors_file(str_path,
       std::ofstream::out | std::ofstream::binary);
 
   if (!tensors_file.is_open()) {
-    FATAL("Fail on create tensors_params.h file")
+    FATAL(boost::format("Fail on create weights_biases.bin file on: %1%")
+        %str_path)
   }
 
   TensorsHeader tensor_header(model_);
   std::string buf = tensor_header.Assembler();
   tensors_file.write(buf.c_str(), buf.length());
   tensors_file.close();
+
+  std::cout << "File: " << str_path << " generated\n";
 }
 
 void CppGen::GenCppFile(const boost::filesystem::path& path) {
-  std::ofstream cc_file(path.string() + "/nn.cc",
-      std::ofstream::out | std::ofstream::binary);
+  const boost::filesystem::path& fname("nn.cc");
+  std::string str_path = (path / fname).string();
+  std::ofstream cc_file(str_path, std::ofstream::out | std::ofstream::binary);
 
   if (!cc_file.is_open()) {
     FATAL("Fail on create nn.cc file")
@@ -711,11 +717,15 @@ void CppGen::GenCppFile(const boost::filesystem::path& path) {
   std::string code = model.Assembler();
   cc_file.write(code.c_str(), code.length());
   cc_file.close();
+
+  std::cout << "File: " << str_path << " generated\n";
 }
 
 void CppGen::GenHFile(const boost::filesystem::path& path) {
-  std::ofstream cc_file(path.string() + "/nn.h",
-      std::ofstream::out | std::ofstream::binary);
+  const boost::filesystem::path& fname("nn.h");
+  std::string str_path = (path / fname).string();
+
+  std::ofstream cc_file(str_path, std::ofstream::out | std::ofstream::binary);
 
   if (!cc_file.is_open()) {
     FATAL("Fail on create nn.h file")
@@ -725,12 +735,15 @@ void CppGen::GenHFile(const boost::filesystem::path& path) {
   std::string code = model.Assembler();
   cc_file.write(code.c_str(), code.length());
   cc_file.close();
+
+  std::cout << "File: " << str_path << " generated\n";
 }
 
 void CppGen::GenJniFile(const boost::filesystem::path& path,
     const std::string& java_package) {
-  std::ofstream jni_file(path.string() + "/jni.cc",
-      std::ofstream::out | std::ofstream::binary);
+  const boost::filesystem::path& fname("jni.cc");
+  std::string str_path = (path / fname).string();
+  std::ofstream jni_file(str_path, std::ofstream::out | std::ofstream::binary);
 
   if (!jni_file.is_open()) {
     FATAL("Fail on create nn.h file")
@@ -740,6 +753,8 @@ void CppGen::GenJniFile(const boost::filesystem::path& path,
   std::string code = model.Assembler();
   jni_file.write(code.c_str(), code.length());
   jni_file.close();
+
+  std::cout << "File: " << str_path << " generated\n";
 }
 
 }

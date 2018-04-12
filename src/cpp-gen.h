@@ -45,7 +45,7 @@ class ModelGen {
       size_t num_params);
   std::string GenerateOpOutputs(const std::vector<int>& outputs);
   std::string OpTypeStr(BuiltinOperator op_type);
-  std::tuple<size_t, std::string> OpParams(const Operator& op, int id);
+  std::tuple<size_t, std::string> OpParams(const Operator& op);
   std::string GenerateInputsAndOutputs();
   std::string GenerateInputFunctions();
   std::string GenerateOutputFunctions();
