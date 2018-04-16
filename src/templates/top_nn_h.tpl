@@ -6,6 +6,6 @@ bool Compile(int32_t preference);\n\
 bool Execute();\n\
 void Cleanup();\n\
 bool BuildModel();\n\
-bool SetInput(const void *buffer);\n\
-bool SetOutput(void *buffer);\n\
+bool SetInput(const int8_t *buffer);\n\
+bool SetOutput(int8_t *buffer);\n\
 "

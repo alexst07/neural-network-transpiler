@@ -127,9 +127,15 @@ std::string ModelGen::GenerateTensorType(const Tensor& tensor, int count) {
   ss << "  .type = " << str_tensor_type << ",\n";
   ss << "  .dimensionCount = " << dimension_count << ",\n";
   ss << "  .dimensions = " << "dimensions_" << count << ",\n";
-  ss << "  .scale = " << scale << "f,\n";
+
+  if (scale == 0) {
+    ss << "  .scale = ." << scale << "f,\n";
+  } else{
+    ss << "  .scale = " << scale << "f,\n";
+  }
+
   ss << "  .zeroPoint = " << zero_point << "\n";
-  ss << "}\n\n";
+  ss << "};\n\n";
 
   return ss.str();
 }
@@ -157,8 +163,8 @@ std::string ModelGen::GenerateTensorsCode() {
     ss << GenerateTensorType(tensor, count);
 
     // insert nnapi operand
-    ss << "status = ANeuralNetworksModel_addOperand(model,";
-    ss << "operand_type_" << count << ");\n";
+    ss << "status = ANeuralNetworksModel_addOperand(model, ";
+    ss << "&operand_type_" << count << ");\n";
     ss << CheckStatus(boost::format("ANeuralNetworksModel_addOperand failed"
         "for operand %1%")%count);
 
@@ -170,7 +176,7 @@ std::string ModelGen::GenerateTensorsCode() {
 
       // insert operand value
       ss << "status = ANeuralNetworksModel_setOperandValueFromMemory(model, ";
-      ss << count << ", memory_model, offset, tensor_size);\n\n";
+      ss << count << ", mem, offset, tensor_size);\n\n";
       ss << CheckStatus(boost::format(
           "ANeuralNetworksModel_setOperandValueFromMemory "
           "failed for operand %1%")%count);
@@ -448,12 +454,10 @@ std::string ModelGen::GenerateOpCode() {
     std::string str_params;
     std::tie(num_params, str_params) = OpParams(op);
     ss << str_params << "\n";
-    ss << "uint32_t input_operands_" << count << "[";
-    ss << op.inputs().size() <<"] = { ";
+    ss << "uint32_t input_operands_" << count << "[] = { ";
     ss << GenerateOpInputs(op.inputs(), num_params) << " };\n";
 
-    ss << "uint32_t output_operands_" << count << "[";
-    ss << op.outputs().size() <<"] = {";
+    ss << "uint32_t output_operands_" << count << "[] = {";
     ss << GenerateOpOutputs(op.outputs()) << " };\n\n";
 
     ss << "status = ANeuralNetworksModel_addOperation(model, ";
@@ -541,7 +545,7 @@ std::string ModelGen::GenerateInputFunctions() {
   Graph& graph = model_.graph();
   std::string str_input;
 
-  str_input += "bool SetInput(const void *buffer) {\n";
+  str_input += "bool SetInput(const int8_t *buffer) {\n";
 
   int start = 0;
   for (int i : graph.Inputs()) {
@@ -549,8 +553,8 @@ std::string ModelGen::GenerateInputFunctions() {
     int size = TensorSize(tensor);
 
     str_input += "  int status = ANeuralNetworksExecution_setInput(run, " +
-        std::to_string(i) + ", NULL, buffer + " + std::to_string(start) +
-        ", " + std::to_string(size) + ");\n";
+        std::to_string(i) + ", NULL, &buffer[" + std::to_string(start) +
+        "], " + std::to_string(size) + ");\n";
 
     str_input += CheckStatus(boost::format(
         "ANeuralNetworksExecution_setInput failed"));
@@ -567,7 +571,7 @@ std::string ModelGen::GenerateOutputFunctions() {
   Graph& graph = model_.graph();
   std::string str_output;
 
-  str_output += "bool SetOutput(void *buffer) {\n";
+  str_output += "bool SetOutput(int8_t *buffer) {\n";
 
   int start = 0;
   for (int i : graph.Outputs()) {
@@ -575,8 +579,8 @@ std::string ModelGen::GenerateOutputFunctions() {
     int size = TensorSize(tensor);
 
     str_output += "  int status = ANeuralNetworksExecution_setOutput(run, " +
-        std::to_string(i) + ", NULL, buffer + " + std::to_string(start) +
-        ", " + std::to_string(size) + ");\n";
+        std::to_string(i) + ", NULL, &buffer[" + std::to_string(start) +
+        "], " + std::to_string(size) + ");\n";
 
     str_output += CheckStatus(boost::format(
         "ANeuralNetworksExecution_setOutput failed"));
@@ -608,6 +612,9 @@ std::string ModelGen::Assembler() {
 
   code += GenerateInputFunctions();
   code += GenerateOutputFunctions();
+
+  // close namespace
+  code += "\n}\n\n";
 
   return code;
 }

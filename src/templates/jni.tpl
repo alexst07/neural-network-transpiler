@@ -1,4 +1,6 @@
-"include \"nn.h\"\n\
+"#include <jni.h>\n\
+#include <string>\n\
+#include \"nn.h\"\n\
 \n\
 jint throwException(JNIEnv *env, std::string message) {\n\
   jclass exClass;\n\
@@ -21,22 +23,22 @@ JNICALL\n\
       nullptr));\n\
 \n\
   if (!nnc::OpenTrainingData(filename.c_str())) {\n\
-    throwException(\"Error on open file: \" + filename);\n\
+    throwException(env, \"Error on open file: \" + filename);\n\
     return;\n\
   }\n\
 \n\
   if (!nnc::CreateModel()) {\n\
-    throwException(\"Error on create nnapi model\");\n\
+    throwException(env, \"Error on create nnapi model\");\n\
     return;\n\
   }\n\
 \n\
   if (!nnc::Compile(preference)) {\n\
-    throwException(\"Error on compile nnapi model\");\n\
+    throwException(env, \"Error on compile nnapi model\");\n\
     return;\n\
   }\n\
 \n\
   if (!nnc::BuildModel()) {\n\
-    throwException(\"Error on build model\");\n\
+    throwException(env, \"Error on build model\");\n\
     return;\n\
   }\n\
 }\n\
@@ -57,7 +59,7 @@ JNICALL\n\
     JNIEnv *env,\n\
     jobject /* this */) {\n\
   if (!nnc::Execute()) {\n\
-    throwException(\"Error on execute model\");\n\
+    throwException(env, \"Error on execute model\");\n\
     return;\n\
   }\n\
 }\n\
@@ -72,20 +74,20 @@ JNICALL\n\
   jsize input_len = env->GetArrayLength(input_data);\n\
 \n\
   if (input_len != @TOTAL_INPUT_SIZE) {\n\
-    throwException(\"Input data has wrong length\");\n\
+    throwException(env, \"Input data has wrong length\");\n\
     return;\n\
   }\n\
 \n\
   jbyte *bytes = env->GetByteArrayElements(input_data, 0);\n\
 \n\
   if (bytes == NULL) {\n\
-    throwException(\"Error on elements from java array input data\");\n\
+    throwException(env, \"Error on elements from java array input data\");\n\
     return;\n\
   }\n\
 \n\
   if (!nnc::SetInput(bytes)) {\n\
     env->ReleaseByteArrayElements(input_data, bytes, JNI_ABORT);\n\
-    throwException(\"Error on execute model\");\n\
+    throwException(env, \"Error on execute model\");\n\
     return;\n\
   }\n\
 \n\
@@ -101,17 +103,17 @@ JNICALL\n\
   jbyteArray result;\n\
   result = env->NewByteArray(@TOTAL_OUTPUT_SIZE);\n\
   if (result == NULL) {\n\
-    throwException(\"out of memory\");\n\
+    throwException(env, \"out of memory\");\n\
     return NULL; /* out of memory error thrown */\n\
   }\n\
 \n\
   jbyte data[@TOTAL_OUTPUT_SIZE];\n\
   if (!nnc::SetOutput(data)) {\n\
-    throwException(\"Error on execute model\");\n\
-    return;\n\
+    throwException(env, \"Error on execute model\");\n\
+    return NULL;\n\
   }\n\
 \n\
-  env->SetIntArrayRegion(result, 0, @TOTAL_OUTPUT_SIZE, data);\n\
+  env->SetByteArrayRegion(result, 0, @TOTAL_OUTPUT_SIZE, data);\n\
   return result;\n\
 }\n\
 "
