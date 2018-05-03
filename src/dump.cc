@@ -51,6 +51,71 @@ void DumpGraph::Print() {
   }
 }
 
+std::string DumpGraph::TensorType(const Tensor& tensor) {
+  switch (tensor.tensor_type()) {
+    case TensorType::FLOAT32:
+      return std::string("FLOAT32");
+      break;
+
+    case TensorType::FLOAT16:
+      return std::string("FLOAT16");
+      break;
+
+    case TensorType::INT32:
+      return std::string("INT32");
+      break;
+
+    case TensorType::UINT8:
+      return std::string("UINT8");
+      break;
+
+    case TensorType::INT64:
+      return std::string("INT64");
+      break;
+
+    case TensorType::STRING:
+      return std::string("STRING");
+      break;
+  }
+
+  return std::string();
+}
+
+std::string DumpGraph::Info() {
+  std::stringstream ss;
+
+  Graph& graph = model_.graph();
+  const auto& tensors = graph.Tensors();
+
+  ss << "::Inputs::\n";
+  for (const auto& i : graph.Inputs()) {
+    ss << " " << tensors[i].name() << "<" << TensorType(tensors[i]) << ">"
+       << " [" << TensorShape(tensors[i]) << "]";
+
+    if (tensors[i].HasQuantization()) {
+      ss << " (quantized)\n";
+    } else {
+      ss << "\n";
+    }
+  }
+
+  ss << "\n";
+  ss << "::Outputs::\n";
+  for (const auto& i : graph.Outputs()) {
+    ss << " " << tensors[i].name() << "<" << TensorType(tensors[i]) << ">"
+       << " [" << TensorShape(tensors[i]) << "]";
+
+    if (tensors[i].HasQuantization()) {
+      ss << " (quantized)\n";
+    } else {
+      ss << "\n";
+    }
+  }
+
+  ss << "\n";
+  return ss.str();
+}
+
 std::string DumpGraph::FormatTensorName(const std::string& name) {
   size_t pos = name.find_last_of('/');
 
@@ -59,6 +124,18 @@ std::string DumpGraph::FormatTensorName(const std::string& name) {
   }
 
   return name;
+}
+
+std::string DumpGraph::TensorShape(const Tensor& tensor) {
+  std::stringstream ss;
+
+  for (const auto&i : tensor.shape()) {
+    ss << i << ", ";
+  }
+
+  std::string str = ss.str();
+  str = str.substr(0, str.length() - 2);
+  return str;
 }
 
 std::string DumpGraph::Dot() {
@@ -71,8 +148,8 @@ std::string DumpGraph::Dot() {
   int count = 0;
   for (const auto& tensor: graph.Tensors()) {
     ss << "  T" << count++ << " [";
-    ss << "shape=box label=\"" << "..." << FormatTensorName(tensor.name())
-       << "\"]\n";
+    ss << "shape=box label=\"" << FormatTensorName(tensor.name());
+    ss << " [" << TensorShape(tensor) << "]\"]\n";
   }
 
   count = 0;

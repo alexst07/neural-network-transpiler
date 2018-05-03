@@ -14,7 +14,13 @@ class DumpGraph {
 
   void Print();
 
+  std::string TensorShape(const Tensor& tensor);
+
   std::string Dot();
+
+  std::string Info();
+
+  std::string TensorType(const Tensor& tensor);
 
  private:
   std::string FormatTensorName(const std::string& name);
