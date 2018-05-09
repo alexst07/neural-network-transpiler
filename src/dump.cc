@@ -76,6 +76,11 @@ std::string DumpGraph::TensorType(const Tensor& tensor) {
     case TensorType::STRING:
       return std::string("STRING");
       break;
+#ifdef NEWER_TENSORFLOW
+    case TensorType::BOOL:
+      return std::string("BOOL");
+      break;
+#endif
   }
 
   return std::string();

@@ -15,6 +15,7 @@ FlatBufferModel::FlatBufferModel(const std::string& fname) {
   data_ = new char[length];
   fread(data_, sizeof(char), length, file);
   fclose(file);
+  len_ = length;
 }
 
 FlatBufferModel::~FlatBufferModel() {
@@ -23,6 +24,10 @@ FlatBufferModel::~FlatBufferModel() {
 
 char* FlatBufferModel::data() {
   return data_;
+}
+
+int FlatBufferModel::Length() const {
+  return len_;
 }
 
 Model::Model(const std::string& fname)
@@ -45,30 +50,34 @@ void Model::PopulateGraphOutputs(const tflite::SubGraph* graph) {
 
 TensorType Model::ConvertTensorType(tflite::TensorType type) {
   switch (type) {
-    case tflite::TensorType::FLOAT32:
+    case tflite::TensorType_FLOAT32:
       return TensorType::FLOAT32;
       break;
 
-    case tflite::TensorType::FLOAT16:
+    case tflite::TensorType_FLOAT16:
       return TensorType::FLOAT16;
       break;
 
-    case tflite::TensorType::INT32:
+    case tflite::TensorType_INT32:
       return TensorType::INT32;
       break;
 
-    case tflite::TensorType::UINT8:
+    case tflite::TensorType_UINT8:
       return TensorType::UINT8;
       break;
 
-    case tflite::TensorType::INT64:
+    case tflite::TensorType_INT64:
       return TensorType::INT64;
       break;
 
-    case tflite::TensorType::STRING:
+    case tflite::TensorType_STRING:
       return TensorType::STRING;
       break;
-
+#ifdef NEWER_TENSORFLOW
+    case tflite::TensorType_BOOL:
+      return TensorType::BOOL;
+      break;
+#endif
     default:
       FATAL("Tensor type not valid")
   }
@@ -106,27 +115,27 @@ void Model::PopulateGraphTensors(const tflite::SubGraph* graph) {
 ActivationFunctionType Model::ConvertActivationFunction(
     tflite::ActivationFunctionType fn_activation_type) {
   switch (fn_activation_type) {
-    case tflite::ActivationFunctionType::NONE:
+    case tflite::ActivationFunctionType_NONE:
       return ActivationFunctionType::NONE;
       break;
 
-    case tflite::ActivationFunctionType::RELU:
+    case tflite::ActivationFunctionType_RELU:
       return ActivationFunctionType::RELU;
       break;
 
-    case tflite::ActivationFunctionType::RELU_N1_TO_1:
+    case tflite::ActivationFunctionType_RELU_N1_TO_1:
       return ActivationFunctionType::NONE;
       break;
 
-    case tflite::ActivationFunctionType::RELU6:
+    case tflite::ActivationFunctionType_RELU6:
       return ActivationFunctionType::RELU6;
       break;
 
-    case tflite::ActivationFunctionType::TANH:
+    case tflite::ActivationFunctionType_TANH:
       return ActivationFunctionType::TANH;
       break;
 
-    case tflite::ActivationFunctionType::SIGN_BIT:
+    case tflite::ActivationFunctionType_SIGN_BIT:
       return ActivationFunctionType::SIGN_BIT;
       break;
 
@@ -136,9 +145,9 @@ ActivationFunctionType Model::ConvertActivationFunction(
 }
 
 Padding Model::ConvertPadding(tflite::Padding padding) {
-  if (padding == tflite::Padding::SAME) {
+  if (padding == tflite::Padding_SAME) {
     return Padding::SAME;
-  } else if (padding == tflite::Padding::VALID) {
+  } else if (padding == tflite::Padding_VALID) {
     return Padding::VALID;
   } else {
     return Padding::UNKNOWN;
@@ -163,7 +172,10 @@ std::unique_ptr<Conv2DOptions> Model::MakeConv2DOptions(
   option->fused_activation_function = ConvertActivationFunction(
       p->fused_activation_function());
   option->padding = ConvertPadding(p->padding());
-
+#ifdef NEWER_TENSORFLOW
+  option->dilation_w_factor = p->dilation_w_factor();
+  option->dilation_h_factor = p->dilation_h_factor();
+#endif
   return option;
 }
 
@@ -231,15 +243,15 @@ std::unique_ptr<LSHProjectionOptions> Model::MakeLSHProjectionOptions(
       std::make_unique<LSHProjectionOptions>();
 
   switch (p->type()) {
-    case tflite::LSHProjectionType::UNKNOWN:
+    case tflite::LSHProjectionType_UNKNOWN:
       option->type = LSHProjectionType::UNKNOWN;
       break;
 
-    case tflite::LSHProjectionType::SPARSE:
+    case tflite::LSHProjectionType_SPARSE:
       option->type = LSHProjectionType::SPARSE;
       break;
 
-    case tflite::LSHProjectionType::DENSE:
+    case tflite::LSHProjectionType_DENSE:
       option->type = LSHProjectionType::DENSE;
       break;
   }
@@ -400,8 +412,7 @@ std::unique_ptr<ResizeBilinearOptions> Model::MakeResizeBilinearOptions(
   std::unique_ptr<ResizeBilinearOptions> option =
       std::make_unique<ResizeBilinearOptions>();
 
-  option->new_height = p->new_height();
-  option->new_width = p->new_width();
+  option->align_corners = p->align_corners();
 
   return option;
 }
@@ -417,13 +428,8 @@ std::unique_ptr<CallOptions> Model::MakeCallOptions(
   return option;
 }
 
-std::unique_ptr<PadOptions> Model::MakePadOptions(const tflite::Operator* op) {
-  auto p = reinterpret_cast<const tflite::PadOptions*>(op->builtin_options());
-
+std::unique_ptr<PadOptions> Model::MakePadOptions(const tflite::Operator*) {
   std::unique_ptr<PadOptions> option = std::make_unique<PadOptions>();
-  option->before_padding = AssignVector<int>(p->before_padding());
-  option->after_padding = AssignVector<int>(p->after_padding());
-
   return option;
 }
 
@@ -440,31 +446,17 @@ std::unique_ptr<ReshapeOptions> Model::MakeReshapeOptions(
 }
 
 std::unique_ptr<SpaceToBatchNDOptions> Model::MakeSpaceToBatchNDOptions(
-    const tflite::Operator* op) {
-  auto p = reinterpret_cast<const tflite::SpaceToBatchNDOptions*>(
-      op->builtin_options());
-
+    const tflite::Operator*) {
   std::unique_ptr<SpaceToBatchNDOptions> option =
       std::make_unique<SpaceToBatchNDOptions>();
-
-  option->block_shape = AssignVector<int>(p->block_shape());
-  option->before_paddings = AssignVector<int>(p->before_paddings());
-  option->after_paddings = AssignVector<int>(p->after_paddings());
 
   return option;
 }
 
 std::unique_ptr<BatchToSpaceNDOptions> Model::MakeBatchToSpaceNDOptions(
-    const tflite::Operator* op) {
-  auto p = reinterpret_cast<const tflite::BatchToSpaceNDOptions*>(
-      op->builtin_options());
-
+    const tflite::Operator*) {
   std::unique_ptr<BatchToSpaceNDOptions> option =
       std::make_unique<BatchToSpaceNDOptions>();
-
-  option->block_shape = AssignVector<int>(p->block_shape());
-  option->before_crops = AssignVector<int>(p->before_crops());
-  option->after_crops = AssignVector<int>(p->after_crops());
 
   return option;
 }
@@ -527,15 +519,15 @@ Model::MakeEmbeddingLookupSparseOptions(const tflite::Operator* op) {
       std::make_unique<EmbeddingLookupSparseOptions>();
 
   switch (p->combiner()) {
-    case tflite::CombinerType::SUM:
+    case tflite::CombinerType_SUM:
       option->combiner = CombinerType::SUM;
       break;
 
-    case tflite::CombinerType::MEAN:
+    case tflite::CombinerType_MEAN:
       option->combiner = CombinerType::MEAN;
       break;
 
-    case tflite::CombinerType::SQRTN:
+    case tflite::CombinerType_SQRTN:
       option->combiner = CombinerType::SQRTN;
       break;
   }
@@ -556,14 +548,9 @@ std::unique_ptr<GatherOptions> Model::MakeGatherOptions(
 }
 
 std::unique_ptr<TransposeOptions> Model::MakeTransposeOptions(
-    const tflite::Operator* op) {
-  auto p = reinterpret_cast<const tflite::TransposeOptions*>(
-      op->builtin_options());
-
+    const tflite::Operator*) {
   std::unique_ptr<TransposeOptions> option =
       std::make_unique<TransposeOptions>();
-
-  option->perm = AssignVector<int>(p->perm());
 
   return option;
 }
@@ -576,7 +563,6 @@ std::unique_ptr<MeanOptions> Model::MakeMeanOptions(
   std::unique_ptr<MeanOptions> option = std::make_unique<MeanOptions>();
 
   option->keep_dims = p->keep_dims();
-  option->axis = AssignVector<int>(p->axis());
 
   return option;
 }
@@ -593,132 +579,227 @@ std::unique_ptr<SqueezeOptions> Model::MakeSqueezeOptions(
   return option;
 }
 
+std::unique_ptr<ExpOptions> Model::MakeExpOptions(
+    const tflite::Operator*) {
+  std::unique_ptr<ExpOptions> option = std::make_unique<ExpOptions>();
+
+  return option;
+}
+
+std::unique_ptr<TopKV2Options> Model::MakeTopKV2Options(
+    const tflite::Operator*) {
+  std::unique_ptr<TopKV2Options> option = std::make_unique<TopKV2Options>();
+  return option;
+}
+
+std::unique_ptr<SplitOptions> Model::MakeSplitOptions(
+    const tflite::Operator* op) {
+  auto p = reinterpret_cast<const tflite::SplitOptions*>(
+      op->builtin_options());
+
+  std::unique_ptr<SplitOptions> option = std::make_unique<SplitOptions>();
+
+  option->num_splits = p->num_splits();
+
+  return option;
+}
+
+std::unique_ptr<LogSoftmaxOptions> Model::MakeLogSoftmaxOptions(
+    const tflite::Operator*) {
+  std::unique_ptr<LogSoftmaxOptions> option =
+      std::make_unique<LogSoftmaxOptions>();
+
+  return option;
+}
+
+std::unique_ptr<CastOptions> Model::MakeCastOptions(
+    const tflite::Operator* op) {
+  auto p = reinterpret_cast<const tflite::CastOptions*>(
+      op->builtin_options());
+
+  std::unique_ptr<CastOptions> option = std::make_unique<CastOptions>();
+
+  option->in_data_type = ConvertTensorType(p->in_data_type());
+  option->out_data_type = ConvertTensorType(p->out_data_type());
+
+  return option;
+}
+
+std::unique_ptr<DequantizeOptions> Model::MakeDequantizeOptions(
+    const tflite::Operator*) {
+  std::unique_ptr<DequantizeOptions> option =
+      std::make_unique<DequantizeOptions>();
+
+  return option;
+}
+
+#ifdef NEWER_TENSORFLOW
+std::unique_ptr<MaximumMinimumOptions> Model::MakeMaximumMinimumOptions(
+    const tflite::Operator*) {
+  std::unique_ptr<MaximumMinimumOptions> option =
+      std::make_unique<MaximumMinimumOptions>();
+
+  return option;
+}
+
+std::unique_ptr<ArgMaxOptions> Model::MakeArgMaxOptions(
+    const tflite::Operator* op) {
+  auto p = reinterpret_cast<const tflite::ArgMaxOptions*>(
+      op->builtin_options());
+
+  std::unique_ptr<ArgMaxOptions> option = std::make_unique<ArgMaxOptions>();
+
+  option->output_type = ConvertTensorType(p->output_type());
+
+  return option;
+}
+
+std::unique_ptr<LessOptions> Model::MakeLessOptions(
+    const tflite::Operator*) {
+  std::unique_ptr<LessOptions> option = std::make_unique<LessOptions>();
+  return option;
+}
+
+std::unique_ptr<NegOptions> Model::MakeNegOptions(
+    const tflite::Operator*) {
+  std::unique_ptr<NegOptions> option = std::make_unique<NegOptions>();
+  return option;
+}
+#else
+std::unique_ptr<MaximumOptions> Model::MakeMaximumOptions(
+    const tflite::Operator*) {
+  std::unique_ptr<MaximumOptions> option = std::make_unique<MaximumOptions>();
+
+  return option;
+}
+#endif
+
 std::unique_ptr<BuiltinOptions> Model::HandleBuiltinOptions(
     const tflite::Operator* op) {
   auto op_type = op->builtin_options_type();
 
   switch (op_type) {
-    case tflite::BuiltinOptions::Conv2DOptions:
+    case tflite::BuiltinOptions_Conv2DOptions:
       return MakeConv2DOptions(op);
       break;
 
-    case tflite::BuiltinOptions::DepthwiseConv2DOptions:
+    case tflite::BuiltinOptions_DepthwiseConv2DOptions:
       return MakeDepthwiseConv2DOptions(op);
       break;
 
-    case tflite::BuiltinOptions::ConcatEmbeddingsOptions:
+    case tflite::BuiltinOptions_ConcatEmbeddingsOptions:
       return MakeConcatEmbeddingsOptions(op);
       break;
 
-    case tflite::BuiltinOptions::LSHProjectionOptions:
+    case tflite::BuiltinOptions_LSHProjectionOptions:
       return MakeLSHProjectionOptions(op);
       break;
 
-    case tflite::BuiltinOptions::Pool2DOptions:
+    case tflite::BuiltinOptions_Pool2DOptions:
       return MakePool2DOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SVDFOptions:
+    case tflite::BuiltinOptions_SVDFOptions:
       return MakeSVDFOptions(op);
       break;
 
-    case tflite::BuiltinOptions::RNNOptions:
+    case tflite::BuiltinOptions_RNNOptions:
       return MakeRNNOptions(op);
       break;
 
-    case tflite::BuiltinOptions::FullyConnectedOptions:
+    case tflite::BuiltinOptions_FullyConnectedOptions:
       return MakeFullyConnectedOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SoftmaxOptions:
+    case tflite::BuiltinOptions_SoftmaxOptions:
       return MakeSoftmaxOptions(op);
       break;
 
-    case tflite::BuiltinOptions::ConcatenationOptions:
+    case tflite::BuiltinOptions_ConcatenationOptions:
       return MakeConcatenationOptions(op);
       break;
 
-    case tflite::BuiltinOptions::AddOptions:
+    case tflite::BuiltinOptions_AddOptions:
       return MakeAddOptions(op);
       break;
 
-    case tflite::BuiltinOptions::L2NormOptions:
+    case tflite::BuiltinOptions_L2NormOptions:
       return MakeL2NormOptions(op);
       break;
 
-    case tflite::BuiltinOptions::LocalResponseNormalizationOptions:
+    case tflite::BuiltinOptions_LocalResponseNormalizationOptions:
       return MakeLocalResponseNormalizationOptions(op);
       break;
 
-    case tflite::BuiltinOptions::LSTMOptions:
+    case tflite::BuiltinOptions_LSTMOptions:
       return MakeLSTMOptions(op);
       break;
 
-    case tflite::BuiltinOptions::ResizeBilinearOptions:
+    case tflite::BuiltinOptions_ResizeBilinearOptions:
       return MakeResizeBilinearOptions(op);
       break;
 
-    case tflite::BuiltinOptions::CallOptions:
+    case tflite::BuiltinOptions_CallOptions:
       return MakeCallOptions(op);
       break;
 
-    case tflite::BuiltinOptions::ReshapeOptions:
+    case tflite::BuiltinOptions_ReshapeOptions:
       return MakeReshapeOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SkipGramOptions:
+    case tflite::BuiltinOptions_SkipGramOptions:
       return MakeSkipGramOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SpaceToDepthOptions:
+    case tflite::BuiltinOptions_SpaceToDepthOptions:
       return MakeSpaceToDepthOptions(op);
       break;
 
-    case tflite::BuiltinOptions::EmbeddingLookupSparseOptions:
+    case tflite::BuiltinOptions_EmbeddingLookupSparseOptions:
       return MakeEmbeddingLookupSparseOptions(op);
       break;
 
-    case tflite::BuiltinOptions::MulOptions:
+    case tflite::BuiltinOptions_MulOptions:
       return MakeMulOptions(op);
       break;
 
-    case tflite::BuiltinOptions::PadOptions:
+    case tflite::BuiltinOptions_PadOptions:
       return MakePadOptions(op);
       break;
 
-    case tflite::BuiltinOptions::GatherOptions:
+    case tflite::BuiltinOptions_GatherOptions:
       return MakeGatherOptions(op);
       break;
 
-    case tflite::BuiltinOptions::BatchToSpaceNDOptions:
+    case tflite::BuiltinOptions_BatchToSpaceNDOptions:
       return MakeBatchToSpaceNDOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SpaceToBatchNDOptions:
+    case tflite::BuiltinOptions_SpaceToBatchNDOptions:
       return MakeSpaceToBatchNDOptions(op);
       break;
 
-    case tflite::BuiltinOptions::TransposeOptions:
+    case tflite::BuiltinOptions_TransposeOptions:
       return MakeTransposeOptions(op);
       break;
 
-    case tflite::BuiltinOptions::MeanOptions:
+    case tflite::BuiltinOptions_MeanOptions:
       return MakeMeanOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SubOptions:
+    case tflite::BuiltinOptions_SubOptions:
       return MakeSubOptions(op);
       break;
 
-    case tflite::BuiltinOptions::DivOptions:
+    case tflite::BuiltinOptions_DivOptions:
       return MakeDivOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SqueezeOptions:
+    case tflite::BuiltinOptions_SqueezeOptions:
       return MakeSqueezeOptions(op);
       break;
 
-    case tflite::BuiltinOptions::SequenceRNNOptions:
+    case tflite::BuiltinOptions_SequenceRNNOptions:
       return MakeSequenceRNNOptions(op);
       break;
 
@@ -752,7 +833,18 @@ void Model::PopulateGraphOperators(const tflite::SubGraph* graph) {
 }
 
 void Model::PopulateGraph() {
-  auto graph = fb_model_->subgraphs()->Get(0);
+  if (flat_buffers_.Length() == 0) {
+    FATAL("Model file is empty")
+    return;
+  }
+
+  auto subgraphs = fb_model_->subgraphs();
+  if (!subgraphs) {
+    FATAL("No subgraph found")
+    return;
+  }
+
+  auto graph = subgraphs->Get(0);
 
   PopulateGraphInputs(graph);
   PopulateGraphOutputs(graph);
@@ -776,170 +868,238 @@ void Model::PopulateBuffers() {
 
 BuiltinOperator Model::ConvertOperatorCode(tflite::BuiltinOperator type) {
   switch (type) {
-    case tflite::BuiltinOperator::ADD:
+    case tflite::BuiltinOperator_ADD:
       return BuiltinOperator::ADD;
       break;
 
-    case tflite::BuiltinOperator::AVERAGE_POOL_2D:
+    case tflite::BuiltinOperator_AVERAGE_POOL_2D:
       return BuiltinOperator::AVERAGE_POOL_2D;
       break;
 
-    case tflite::BuiltinOperator::CONCATENATION:
+    case tflite::BuiltinOperator_CONCATENATION:
       return BuiltinOperator::CONCATENATION;
       break;
 
-    case tflite::BuiltinOperator::CONV_2D:
+    case tflite::BuiltinOperator_CONV_2D:
       return BuiltinOperator::CONV_2D;
       break;
 
-    case tflite::BuiltinOperator::DEPTHWISE_CONV_2D:
+    case tflite::BuiltinOperator_DEPTHWISE_CONV_2D:
       return BuiltinOperator::DEPTHWISE_CONV_2D;
       break;
 
-    case tflite::BuiltinOperator::EMBEDDING_LOOKUP:
-      return BuiltinOperator::EMBEDDING_LOOKUP;
+    case tflite::BuiltinOperator_DEQUANTIZE:
+      return BuiltinOperator::DEQUANTIZE;
       break;
 
-    case tflite::BuiltinOperator::FULLY_CONNECTED:
+    case tflite::BuiltinOperator_EMBEDDING_LOOKUP:
+      return BuiltinOperator::EMBEDDING_LOOKUP;
+      break;
+#ifdef NEWER_TENSORFLOW
+    case tflite::BuiltinOperator_FLOOR:
+      return BuiltinOperator::FLOOR;
+      break;
+#endif
+    case tflite::BuiltinOperator_FULLY_CONNECTED:
       return BuiltinOperator::FULLY_CONNECTED;
       break;
 
-    case tflite::BuiltinOperator::HASHTABLE_LOOKUP:
+    case tflite::BuiltinOperator_HASHTABLE_LOOKUP:
       return BuiltinOperator::HASHTABLE_LOOKUP;
       break;
 
-    case tflite::BuiltinOperator::L2_NORMALIZATION:
+    case tflite::BuiltinOperator_L2_NORMALIZATION:
       return BuiltinOperator::L2_NORMALIZATION;
       break;
 
-    case tflite::BuiltinOperator::L2_POOL_2D:
+    case tflite::BuiltinOperator_L2_POOL_2D:
       return BuiltinOperator::L2_POOL_2D;
       break;
 
-    case tflite::BuiltinOperator::LOCAL_RESPONSE_NORMALIZATION:
+    case tflite::BuiltinOperator_LOCAL_RESPONSE_NORMALIZATION:
       return BuiltinOperator::LOCAL_RESPONSE_NORMALIZATION;
       break;
 
-    case tflite::BuiltinOperator::LOGISTIC:
+    case tflite::BuiltinOperator_LOGISTIC:
       return BuiltinOperator::LOGISTIC;
       break;
 
-    case tflite::BuiltinOperator::LSH_PROJECTION:
+    case tflite::BuiltinOperator_LSH_PROJECTION:
       return BuiltinOperator::LSH_PROJECTION;
       break;
 
-    case tflite::BuiltinOperator::LSTM:
+    case tflite::BuiltinOperator_LSTM:
       return BuiltinOperator::LSTM;
       break;
 
-    case tflite::BuiltinOperator::MAX_POOL_2D:
+    case tflite::BuiltinOperator_MAX_POOL_2D:
       return BuiltinOperator::MAX_POOL_2D;
       break;
 
-    case tflite::BuiltinOperator::MUL:
+    case tflite::BuiltinOperator_MUL:
       return BuiltinOperator::MUL;
       break;
 
-    case tflite::BuiltinOperator::RELU:
+    case tflite::BuiltinOperator_RELU:
       return BuiltinOperator::RELU;
       break;
 
-    case tflite::BuiltinOperator::RELU_N1_TO_1:
+    case tflite::BuiltinOperator_RELU_N1_TO_1:
       return BuiltinOperator::RELU1;
       break;
 
-    case tflite::BuiltinOperator::RELU6:
+    case tflite::BuiltinOperator_RELU6:
       return BuiltinOperator::RELU6;
       break;
 
-    case tflite::BuiltinOperator::RESHAPE:
+    case tflite::BuiltinOperator_RESHAPE:
       return BuiltinOperator::RESHAPE;
       break;
 
-    case tflite::BuiltinOperator::RESIZE_BILINEAR:
-      return BuiltinOperator::RESIZE_BILINEAR;
-      break;
-
-    case tflite::BuiltinOperator::RNN:
+    case tflite::BuiltinOperator_RNN:
       return BuiltinOperator::RNN;
       break;
 
-    case tflite::BuiltinOperator::SOFTMAX:
+    case tflite::BuiltinOperator_SOFTMAX:
       return BuiltinOperator::SOFTMAX;
       break;
 
-    case tflite::BuiltinOperator::SPACE_TO_DEPTH:
+    case tflite::BuiltinOperator_SPACE_TO_DEPTH:
       return BuiltinOperator::SPACE_TO_DEPTH;
       break;
 
-    case tflite::BuiltinOperator::SVDF:
+    case tflite::BuiltinOperator_SVDF:
       return BuiltinOperator::SVDF;
       break;
 
-    case tflite::BuiltinOperator::TANH:
+    case tflite::BuiltinOperator_TANH:
       return BuiltinOperator::TANH;
       break;
 
-    case tflite::BuiltinOperator::CONCAT_EMBEDDINGS:
+    case tflite::BuiltinOperator_CONCAT_EMBEDDINGS:
       return BuiltinOperator::CONCAT_EMBEDDINGS;
       break;
 
-    case tflite::BuiltinOperator::SKIP_GRAM:
+    case tflite::BuiltinOperator_SKIP_GRAM:
       return BuiltinOperator::SKIP_GRAM;
       break;
 
-    case tflite::BuiltinOperator::CALL:
+    case tflite::BuiltinOperator_CALL:
       return BuiltinOperator::CALL;
       break;
 
-    case tflite::BuiltinOperator::CUSTOM:
+    case tflite::BuiltinOperator_CUSTOM:
       return BuiltinOperator::CUSTOM;
       break;
 
-    case tflite::BuiltinOperator::EMBEDDING_LOOKUP_SPARSE:
+    case tflite::BuiltinOperator_EMBEDDING_LOOKUP_SPARSE:
       return BuiltinOperator::EMBEDDING_LOOKUP_SPARSE;
       break;
 
-    case tflite::BuiltinOperator::PAD:
+    case tflite::BuiltinOperator_PAD:
       return BuiltinOperator::PAD;
       break;
 
-    case tflite::BuiltinOperator::UNIDIRECTIONAL_SEQUENCE_RNN:
+    case tflite::BuiltinOperator_UNIDIRECTIONAL_SEQUENCE_RNN:
       return BuiltinOperator::UNIDIRECTIONAL_SEQUENCE_RNN;
       break;
 
-    case tflite::BuiltinOperator::GATHER:
+    case tflite::BuiltinOperator_GATHER:
       return BuiltinOperator::GATHER;
       break;
 
-    case tflite::BuiltinOperator::BATCH_TO_SPACE_ND:
+    case tflite::BuiltinOperator_BATCH_TO_SPACE_ND:
       return BuiltinOperator::BATCH_TO_SPACE_ND;
       break;
 
-    case tflite::BuiltinOperator::SPACE_TO_BATCH_ND:
+    case tflite::BuiltinOperator_SPACE_TO_BATCH_ND:
       return BuiltinOperator::SPACE_TO_BATCH_ND;
       break;
 
-    case tflite::BuiltinOperator::TRANSPOSE:
+    case tflite::BuiltinOperator_TRANSPOSE:
       return BuiltinOperator::TRANSPOSE;
       break;
 
-    case tflite::BuiltinOperator::MEAN:
+    case tflite::BuiltinOperator_MEAN:
       return BuiltinOperator::MEAN;
       break;
 
-    case tflite::BuiltinOperator::SUB:
+    case tflite::BuiltinOperator_SUB:
       return BuiltinOperator::SUB;
       break;
 
-    case tflite::BuiltinOperator::DIV:
+    case tflite::BuiltinOperator_DIV:
       return BuiltinOperator::DIV;
       break;
 
-    case tflite::BuiltinOperator::SQUEEZE:
+    case tflite::BuiltinOperator_SQUEEZE:
       return BuiltinOperator::SQUEEZE;
       break;
 
+    case tflite::BuiltinOperator_UNIDIRECTIONAL_SEQUENCE_LSTM:
+      return BuiltinOperator::UNIDIRECTIONAL_SEQUENCE_LSTM;
+      break;
+
+    case tflite::BuiltinOperator_STRIDED_SLICE:
+      return BuiltinOperator::STRIDED_SLICE;
+      break;
+
+    case tflite::BuiltinOperator_BIDIRECTIONAL_SEQUENCE_RNN:
+      return BuiltinOperator::BIDIRECTIONAL_SEQUENCE_RNN;
+      break;
+
+    case tflite::BuiltinOperator_EXP:
+      return BuiltinOperator::EXP;
+      break;
+
+    case tflite::BuiltinOperator_TOPK_V2:
+      return BuiltinOperator::TOPK_V2;
+      break;
+
+    case tflite::BuiltinOperator_SPLIT:
+      return BuiltinOperator::SPLIT;
+      break;
+
+    case tflite::BuiltinOperator_LOG_SOFTMAX:
+      return BuiltinOperator::LOG_SOFTMAX;
+      break;
+
+    case tflite::BuiltinOperator_DELEGATE:
+      return BuiltinOperator::DELEGATE;
+      break;
+
+    case tflite::BuiltinOperator_BIDIRECTIONAL_SEQUENCE_LSTM:
+      return BuiltinOperator::BIDIRECTIONAL_SEQUENCE_LSTM;
+      break;
+
+    case tflite::BuiltinOperator_CAST:
+      return BuiltinOperator::CAST;
+      break;
+
+    case tflite::BuiltinOperator_PRELU:
+      return BuiltinOperator::PRELU;
+      break;
+
+    case tflite::BuiltinOperator_MAXIMUM:
+      return BuiltinOperator::MAXIMUM;
+      break;
+#ifdef NEWER_TENSORFLOW
+    case tflite::BuiltinOperator_ARG_MAX:
+      return BuiltinOperator::ARG_MAX;
+      break;
+
+    case tflite::BuiltinOperator_MINIMUM:
+      return BuiltinOperator::MINIMUM;
+      break;
+
+    case tflite::BuiltinOperator_LESS:
+      return BuiltinOperator::LESS;
+      break;
+
+    case tflite::BuiltinOperator_NEG:
+      return BuiltinOperator::NEG;
+      break;
+#endif
     default:
       return BuiltinOperator::NONE;
   }

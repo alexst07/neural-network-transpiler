@@ -16,9 +16,11 @@ class FlatBufferModel {
   FlatBufferModel(const std::string& file);
   ~FlatBufferModel();
   char* data();
+  int Length() const;
 
  private:
   char *data_;
+  int len_;
 };
 
 class Buffer {
@@ -46,6 +48,18 @@ enum class ActivationFunctionType: int8_t {
   SIGN_BIT
 };
 
+enum class TensorType: int8_t {
+  FLOAT32,
+  FLOAT16,
+  INT32,
+  UINT8,
+  INT64,
+  STRING,
+#ifdef NEWER_TENSORFLOW
+  BOOL
+#endif
+};
+
 enum class Padding: int8_t { UNKNOWN = 0, SAME, VALID };
 
 enum class BuiltinOperator {
@@ -55,7 +69,11 @@ enum class BuiltinOperator {
   CONCATENATION,
   CONV_2D,
   DEPTHWISE_CONV_2D,
+  DEQUANTIZE,
   EMBEDDING_LOOKUP,
+#ifdef NEWER_TENSORFLOW
+  FLOOR,
+#endif
   FULLY_CONNECTED,
   HASHTABLE_LOOKUP,
   L2_NORMALIZATION,
@@ -90,7 +108,23 @@ enum class BuiltinOperator {
   MEAN,
   SUB,
   DIV,
-  SQUEEZE
+  SQUEEZE,
+  UNIDIRECTIONAL_SEQUENCE_LSTM,
+  STRIDED_SLICE,
+  BIDIRECTIONAL_SEQUENCE_RNN,
+  EXP,
+  TOPK_V2,
+  SPLIT,
+  LOG_SOFTMAX,
+  DELEGATE,
+  BIDIRECTIONAL_SEQUENCE_LSTM,
+  CAST,
+  PRELU,
+  MAXIMUM,
+  ARG_MAX,
+  MINIMUM,
+  LESS,
+  NEG
 };
 
 enum class BuiltinOptionsType {
@@ -125,7 +159,22 @@ enum class BuiltinOptionsType {
   SubOptions,
   DivOptions,
   SqueezeOptions,
-  SequenceRNNOptions
+  SequenceRNNOptions,
+  StridedSliceOptions,
+  ExpOptions,
+  TopKV2Options,
+  SplitOptions,
+  LogSoftmaxOptions,
+  CastOptions,
+  DequantizeOptions,
+  #ifdef NEWER_TENSORFLOW
+    MaximumMinimumOptions,
+    ArgMaxOptions,
+    LessOptions,
+    NegOptions,
+  #else
+    MaximumOptions
+  #endif
 };
 
 struct OperatorCode {
@@ -149,6 +198,10 @@ struct Conv2DOptions: public BuiltinOptions {
   Padding padding;
   int stride_w;
   int stride_h;
+#ifdef NEWER_TENSORFLOW
+  int dilation_w_factor;
+  int dilation_h_factor;
+#endif
   ActivationFunctionType fused_activation_function;
 };
 
@@ -217,6 +270,11 @@ struct SequenceRNNOptions: public BuiltinOptions {
   ActivationFunctionType fused_activation_function;
 };
 
+struct BidirectionalSequenceRNNOptions: public BuiltinOptions {
+  bool time_major;
+  ActivationFunctionType fused_activation_function;
+};
+
 struct FullyConnectedOptions: public BuiltinOptions {
   FullyConnectedOptions()
     : BuiltinOptions(BuiltinOptionsType::FullyConnectedOptions) {}
@@ -279,8 +337,7 @@ struct ResizeBilinearOptions: public BuiltinOptions {
   ResizeBilinearOptions()
     : BuiltinOptions(BuiltinOptionsType::ResizeBilinearOptions) {}
 
-  int new_height;
-  int new_width;
+  bool align_corners;
 };
 
 struct CallOptions: public BuiltinOptions {
@@ -291,9 +348,6 @@ struct CallOptions: public BuiltinOptions {
 
 struct PadOptions: public BuiltinOptions {
   PadOptions(): BuiltinOptions(BuiltinOptionsType::PadOptions) {}
-
-  std::vector<int> before_padding;
-  std::vector<int> after_padding;
 };
 
 struct ReshapeOptions: public BuiltinOptions {
@@ -305,19 +359,11 @@ struct ReshapeOptions: public BuiltinOptions {
 struct SpaceToBatchNDOptions: public BuiltinOptions {
   SpaceToBatchNDOptions()
     : BuiltinOptions(BuiltinOptionsType::SpaceToBatchNDOptions) {}
-
-  std::vector<int> block_shape;
-  std::vector<int> before_paddings;
-  std::vector<int> after_paddings;
 };
 
 struct BatchToSpaceNDOptions: public BuiltinOptions {
   BatchToSpaceNDOptions()
     : BuiltinOptions(BuiltinOptionsType::BatchToSpaceNDOptions) {}
-
-  std::vector<int> block_shape;
-  std::vector<int> before_crops;
-  std::vector<int> after_crops;
 };
 
 struct SkipGramOptions: public BuiltinOptions {
@@ -347,6 +393,10 @@ struct DivOptions: public BuiltinOptions {
   ActivationFunctionType fused_activation_function;
 };
 
+struct TopKV2Options: public BuiltinOptions {
+  TopKV2Options(): BuiltinOptions(BuiltinOptionsType::TopKV2Options) {}
+};
+
 enum class CombinerType : int8_t {
   SUM = 0,
   MEAN = 1,
@@ -368,14 +418,15 @@ struct GatherOptions: public BuiltinOptions {
 
 struct TransposeOptions: public BuiltinOptions {
   TransposeOptions(): BuiltinOptions(BuiltinOptionsType::TransposeOptions) {}
+};
 
-  std::vector<int> perm;
+struct ExpOptions: public BuiltinOptions {
+  ExpOptions(): BuiltinOptions(BuiltinOptionsType::ExpOptions) {}
 };
 
 struct MeanOptions: public BuiltinOptions {
   MeanOptions(): BuiltinOptions(BuiltinOptionsType::MeanOptions) {}
 
-  std::vector<int> axis;
   bool keep_dims;
 };
 
@@ -384,6 +435,63 @@ struct SqueezeOptions: public BuiltinOptions {
 
   std::vector<int> squeeze_dims;
 };
+
+struct SplitOptions: public BuiltinOptions {
+  SplitOptions(): BuiltinOptions(BuiltinOptionsType::SplitOptions) {}
+
+  int num_splits;
+};
+
+struct StridedSliceOptions: public BuiltinOptions {
+  StridedSliceOptions()
+      : BuiltinOptions(BuiltinOptionsType::StridedSliceOptions) {}
+
+  int begin_mask;
+  int end_mask;
+  int ellipsis_mask;
+  int new_axis_mask;
+  int shrink_axis_mask;
+};
+
+struct LogSoftmaxOptions: public BuiltinOptions {
+  LogSoftmaxOptions(): BuiltinOptions(BuiltinOptionsType::LogSoftmaxOptions) {}
+};
+
+struct CastOptions: public BuiltinOptions {
+  CastOptions(): BuiltinOptions(BuiltinOptionsType::CastOptions) {}
+
+  TensorType in_data_type;
+  TensorType out_data_type;
+};
+
+struct DequantizeOptions: public BuiltinOptions {
+  DequantizeOptions(): BuiltinOptions(BuiltinOptionsType::DequantizeOptions) {}
+};
+
+#ifdef NEWER_TENSORFLOW
+struct MaximumMinimumOptions: public BuiltinOptions {
+  MaximumMinimumOptions()
+      : BuiltinOptions(BuiltinOptionsType::MaximumMinimumOptions) {}
+};
+
+struct ArgMaxOptions: public BuiltinOptions {
+  ArgMaxOptions(): BuiltinOptions(BuiltinOptionsType::ArgMaxOptions) {}
+
+  TensorType output_type;
+};
+
+struct LessOptions: public BuiltinOptions {
+  LessOptions(): BuiltinOptions(BuiltinOptionsType::LessOptions) {}
+};
+
+struct NegOptions: public BuiltinOptions {
+  NegOptions(): BuiltinOptions(BuiltinOptionsType::NegOptions) {}
+};
+#else
+struct MaximumOptions: public BuiltinOptions {
+  MaximumOptions(): BuiltinOptions(BuiltinOptionsType::MaximumOptions) {}
+};
+#endif
 
 class Operator {
  public:
@@ -446,15 +554,6 @@ struct QuantizationParameters {
   std::vector<float> max;
   std::vector<float> scale;
   std::vector<long> zero_point;
-};
-
-enum class TensorType: int8_t {
-  FLOAT32,
-  FLOAT16,
-  INT32,
-  UINT8,
-  INT64,
-  STRING
 };
 
 class Tensor {
@@ -680,6 +779,33 @@ class Model {
   std::unique_ptr<SqueezeOptions> MakeSqueezeOptions(
       const tflite::Operator* op);
 
+  std::unique_ptr<ExpOptions> MakeExpOptions(const tflite::Operator* op);
+
+  std::unique_ptr<TopKV2Options> MakeTopKV2Options(
+      const tflite::Operator* op);
+
+  std::unique_ptr<SplitOptions> MakeSplitOptions(const tflite::Operator* op);
+
+  std::unique_ptr<LogSoftmaxOptions> MakeLogSoftmaxOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<CastOptions> MakeCastOptions(const tflite::Operator* op);
+
+  std::unique_ptr<DequantizeOptions> MakeDequantizeOptions(const tflite::Operator* op);
+
+#ifdef NEWER_TENSORFLOW
+  std::unique_ptr<MaximumMinimumOptions> MakeMaximumMinimumOptions(
+      const tflite::Operator* op);
+
+  std::unique_ptr<ArgMaxOptions> MakeArgMaxOptions(const tflite::Operator* op);
+
+  std::unique_ptr<LessOptions> MakeLessOptions(const tflite::Operator* op);
+
+  std::unique_ptr<NegOptions> MakeNegOptions(const tflite::Operator* op);
+#else
+  std::unique_ptr<MaximumOptions> MakeMaximumOptions(
+      const tflite::Operator* op);
+#endif
   Padding ConvertPadding(tflite::Padding padding);
 
   ActivationFunctionType ConvertActivationFunction(
