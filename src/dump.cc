@@ -86,6 +86,21 @@ std::string DumpGraph::TensorType(const Tensor& tensor) {
   return std::string();
 }
 
+template<class T>
+std::string VectorToStr(const std::vector<T>& vec) {
+  std::stringstream ss;
+
+  ss << "[";
+  for (const auto&i : vec) {
+    ss << i << ", ";
+  }
+
+  std::string str = ss.str();
+  str = str.substr(0, str.length() - 2);
+  str += "]";
+  return str;
+}
+
 std::string DumpGraph::Info() {
   std::stringstream ss;
 
@@ -99,6 +114,10 @@ std::string DumpGraph::Info() {
 
     if (tensors[i].HasQuantization()) {
       ss << " (quantized)\n";
+      const QuantizationParameters& quant = tensors[i].quantization();
+      ss << "   └─ Quant: {min:" << VectorToStr(quant.min) << ", max:"
+         << VectorToStr(quant.max) << ", scale: " << VectorToStr(quant.scale)
+         << ", zero_point:" << VectorToStr(quant.zero_point) << "}\n";
     } else {
       ss << "\n";
     }
