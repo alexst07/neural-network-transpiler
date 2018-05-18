@@ -47,13 +47,13 @@ It generate the output:
 
 ### Generating dot file
 ```
-./annc -m mobilenet_quant_v1_224.tflite -d mobnet.dot
+./nnt -m mobilenet_quant_v1_224.tflite -d mobnet.dot
 ```
 The file mobnet.dot was generated on the same directory
 
 ### Generating NNAPI files to use on Android
 ```
-./annc -m mobilenet_quant_v1_224.tflite -j com.nnt.nnexample -p mobnet_path
+./nnt -m mobilenet_quant_v1_224.tflite -j com.nnt.nnexample -p mobnet_path
 ```
 It creates a directory with name "mobnet_path" with files: [jni.cc, nn.h, nn.cc, weights_biases.bin]
 where the java package is com.nnt.nnexample
