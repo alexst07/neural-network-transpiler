@@ -3,7 +3,7 @@
 
 #include "dump.h"
 
-namespace annc {
+namespace nnt {
 
 void DumpGraph::Print() {
   Graph& graph = model_.graph();

@@ -1,12 +1,12 @@
-#ifndef DROIDNET_DUMP_H
-#define DROIDNET_DUMP_H
+#ifndef NNT_DUMP_H
+#define NNT_DUMP_H
 
 #include <string>
 #include <vector>
 
 #include "model.h"
 
-namespace annc {
+namespace nnt {
 
 class DumpGraph {
  public:

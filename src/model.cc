@@ -5,7 +5,7 @@
 
 #include "exception.h"
 
-namespace annc {
+namespace nnt {
 
 FlatBufferModel::FlatBufferModel(const std::string& fname) {
   FILE* file = fopen(fname.c_str(), "rb");

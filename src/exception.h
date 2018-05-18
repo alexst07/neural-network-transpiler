@@ -5,7 +5,7 @@
 #include <string>
 #include <boost/format.hpp>
 
-namespace annc {
+namespace nnt {
 
 class Exception : public std::exception {
  public:
@@ -43,6 +43,6 @@ class Exception : public std::exception {
 #define FATAL(msg_arg)      \
   throw Exception(msg_arg);
 
-}  // annc
+}  // nnt
 
 #endif  // NNC_EXCEPTION_H

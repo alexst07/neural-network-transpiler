@@ -8,7 +8,7 @@
 
 #include "exception.h"
 
-namespace annc {
+namespace nnt {
 
 std::string TensorsHeader::Generate() {
   const std::vector<Buffer>& buffers = model_.Buffers();

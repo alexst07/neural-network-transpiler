@@ -1,5 +1,5 @@
-#ifndef ANNC_CCP_GEN_H
-#define ANNC_CCP_GEN_H
+#ifndef nnt_CCP_GEN_H
+#define nnt_CCP_GEN_H
 
 #include <string>
 #include <vector>
@@ -9,7 +9,7 @@
 
 #include "model.h"
 
-namespace annc {
+namespace nnt {
 
 class TensorsHeader {
  public:
@@ -105,4 +105,4 @@ class CppGen {
 
 }
 
-#endif  // ANNC_CCP_GEN_H
+#endif  // nnt_CCP_GEN_H

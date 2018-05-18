@@ -8,8 +8,8 @@
 
 void GenerateJniFiles(const std::string& str_model, const std::string& str_path,
     const std::string& java_package) {
-  annc::Model model(str_model);
-  annc::CppGen cpp(model);
+  nnt::Model model(str_model);
+  nnt::CppGen cpp(model);
   boost::filesystem::path path(str_path);
   cpp.GenFiles(path, java_package);
   std::cout << "Finish!\n";
@@ -17,8 +17,8 @@ void GenerateJniFiles(const std::string& str_model, const std::string& str_path,
 
 void GenerateDotFile(const std::string& filename,
     const std::string& str_model) {
-  annc::Model model(str_model);
-  annc::DumpGraph dump(model);
+  nnt::Model model(str_model);
+  nnt::DumpGraph dump(model);
 
   std::ofstream dot_file(filename, std::ofstream::out);
 
@@ -35,8 +35,8 @@ void GenerateDotFile(const std::string& filename,
 }
 
 void Info(const std::string& str_model) {
-  annc::Model model(str_model);
-  annc::DumpGraph dump(model);
+  nnt::Model model(str_model);
+  nnt::DumpGraph dump(model);
   std::cout << dump.Info();
 }
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     GenerateJniFiles(str_model, str_path, java_package);
   } catch (const boost::program_options::error &e) {
     std::cerr << "Error: " << e.what() << '\n';
-  } catch (const annc::Exception& e) {
+  } catch (const nnt::Exception& e) {
     std::cerr << "Error: " << e.what() << '\n';
   }
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(annc)
+project(nnt)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/" ${CMAKE_MODULE_PATH})
 
@@ -42,9 +42,9 @@ file(GLOB SRCS "${CMAKE_SOURCE_DIR}/src/*.cc")
 #
 # create tensorflow proto library
 #
-add_executable(annc ${SRCS})
+add_executable(nnt ${SRCS})
 
-target_link_libraries(annc
+target_link_libraries(nnt
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
   ${Boost_LIBRARIES}

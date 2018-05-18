@@ -1,5 +1,5 @@
-#ifndef DROIDNET_MODEL_H
-#define DROIDNET_MODEL_H
+#ifndef NNT_MODEL_H
+#define NNT_MODEL_H
 
 #include <string>
 #include <vector>
@@ -9,7 +9,7 @@
 
 #include "schemas/schema_generated.h"
 
-namespace annc {
+namespace nnt {
 
 class FlatBufferModel {
  public:
