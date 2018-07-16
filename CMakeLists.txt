@@ -29,9 +29,30 @@ find_package(Threads)
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 
 #
+# Find flatbuffers and build schemas
+#
+message(STATUS "-- FlatBuffers will be downloaded and built from source")
+include(cmake/flatbuffers.cmake)
+
+file(GLOB_RECURSE FBS_FILES "schemas/*.fbs")
+
+build_flatbuffers(
+    "${FBS_FILES}"
+    "${PROJECT_SOURCE_DIR}/schemas"
+    NntSchemas
+    "" # No additional_dependencies
+    "${PROJECT_SOURCE_DIR}/schemas"
+    "" # No binary_schemas_dir
+    "" # No copy_text_schemas_dir
+)
+
+set_property(TARGET NntSchemas APPEND PROPERTY SOURCES ${FBS_FILES})
+add_dependencies(NntSchemas flatbuffers)
+
+#
 # include directories
 #
-include_directories(SYSTEM ${FLATBUFFERS_INCLUDE_DIRS})
+include_directories(${FLATBUFFERS_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR})
 
 #
@@ -43,9 +64,10 @@ file(GLOB SRCS "${CMAKE_SOURCE_DIR}/src/*.cc")
 # create tensorflow proto library
 #
 add_executable(nnt ${SRCS})
+add_dependencies(nnt NntSchemas)
 
 target_link_libraries(nnt
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
   ${Boost_LIBRARIES}
-  /usr/local/lib/libflatbuffers.a)
+  ${FLATBUFFERS_LIBRARIES})
